@@ -58,6 +58,8 @@ public class AuthService {
         Organization organization = new Organization(request.organizationName(), slug);
         organization = organizationRepository.save(organization);
 
+        validateSingleOrgAdminConstraint(organization.getId(), Role.ORG_ADMIN);
+
         String encodedPassword = passwordEncoder.encode(request.password());
         User user = new User(
             organization,
@@ -77,6 +79,30 @@ public class AuthService {
             OrganizationResponse.fromEntity(organization)
         );
     }
+
+    @Transactional
+    public User createUserInOrganization(Organization organization, String email, String rawPassword, String firstName, String lastName, Role role) {
+        Role targetRole = role != null ? role : Role.EMPLOYEE;
+        validateSingleOrgAdminConstraint(organization.getId(), targetRole);
+
+        String encodedPassword = passwordEncoder.encode(rawPassword);
+        User user = new User(
+            organization,
+            email.toLowerCase(Locale.ROOT).trim(),
+            encodedPassword,
+            firstName.trim(),
+            lastName.trim(),
+            targetRole
+        );
+        return userRepository.save(user);
+    }
+
+    public void validateSingleOrgAdminConstraint(UUID organizationId, Role role) {
+        if (role == Role.ORG_ADMIN && userRepository.existsByOrganizationIdAndRole(organizationId, Role.ORG_ADMIN)) {
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "An organization can only have one ORG_ADMIN during the pilot phase");
+        }
+    }
+
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {

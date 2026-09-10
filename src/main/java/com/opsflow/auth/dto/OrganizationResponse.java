@@ -7,7 +7,7 @@ import java.util.UUID;
 public record OrganizationResponse(
     UUID id,
     String name,
-    String slogan,
+    String slug,
     boolean active
 ) {
     public static OrganizationResponse fromEntity(Organization organization) {
