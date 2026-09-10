@@ -12,8 +12,8 @@ public class Organization extends BaseEntity {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "slug", nullable = false, unique = true)
-    private String slug;
+    @Column(name = "slogan", nullable = false, unique = true)
+    private String slogan;
 
     @Column(name = "active", nullable = false)
     private boolean active = true;
@@ -21,9 +21,9 @@ public class Organization extends BaseEntity {
     public Organization() {
     }
 
-    public Organization(String name, String slug) {
+    public Organization(String name, String slogan) {
         this.name = name;
-        this.slug = slug;
+        this.slogan = slogan;
         this.active = true;
     }
 
@@ -35,12 +35,12 @@ public class Organization extends BaseEntity {
         this.name = name;
     }
 
-    public String getSlug() {
-        return slug;
+    public String getSlogan() {
+        return slogan;
     }
 
-    public void setSlug(String slug) {
-        this.slug = slug;
+    public void setSlogan(String slug) {
+        this.slogan = slug;
     }
 
     public boolean isActive() {
