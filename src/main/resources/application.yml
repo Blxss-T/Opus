@@ -1,12 +1,12 @@
 spring:
   application:
-    name: opsflow
+    name: opus
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:opsflow_db}
-    username: ${DB_USER:opsflow_user}
-    password: ${DB_PASSWORD:opsflow_password}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:opus_db}
+    username: ${DB_USER:opus_user}
+    password: ${DB_PASSWORD:opus_password}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10

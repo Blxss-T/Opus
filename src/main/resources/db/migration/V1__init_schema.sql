@@ -4,4 +4,4 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Schema baseline verification comment
-COMMENT ON DATABASE current_database() IS 'OpsFlow Operations Management Platform Database';
+COMMENT ON DATABASE opus_db IS 'OpsFlow Operations Management Platform Database';

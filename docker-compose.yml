@@ -5,9 +5,9 @@ services:
     image: postgres:16-alpine
     container_name: opus_db
     environment:
-      POSTGRES_DB: ${DB_NAME:-opsflow_db}
-      POSTGRES_USER: ${DB_USER:postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:qwerty123}
+      POSTGRES_DB: ${DB_NAME:-opus_db}
+      POSTGRES_USER: ${DB_USER:opus_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:opus_password}
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:

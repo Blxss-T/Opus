@@ -14,7 +14,7 @@ public record OrganizationResponse(
         return new OrganizationResponse(
             organization.getId(),
             organization.getName(),
-            organization.getSlug(),
+            organization.getSlogan(),
             organization.isActive()
         );
     }
