@@ -19,6 +19,7 @@ target/
 Thumbs.db
 
 # Environment variables & secrets
+.env.exampl
 .env
 *.env.local
 

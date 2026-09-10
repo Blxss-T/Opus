@@ -13,7 +13,6 @@ import com.opsflow.users.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -37,10 +36,8 @@ class AuthServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
-    @Mock
     private JwtService jwtService;
 
-    @InjectMocks
     private AuthService authService;
 
     private RegisterRequest registerRequest;
@@ -48,6 +45,10 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
+        String secret = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
+        jwtService = new JwtService(secret, 3600000);
+        authService = new AuthService(organizationRepository, userRepository, passwordEncoder, jwtService);
+
         registerRequest = new RegisterRequest(
             "Acme Corp",
             "admin@acme.com",
@@ -73,12 +74,10 @@ class AuthServiceTest {
         mockUser.setId(UUID.randomUUID());
         when(userRepository.save(any(User.class))).thenReturn(mockUser);
 
-        when(jwtService.generateToken(any())).thenReturn("mockJwtToken");
-
         AuthResponse response = authService.register(registerRequest);
 
         assertNotNull(response);
-        assertEquals("mockJwtToken", response.accessToken());
+        assertNotNull(response.accessToken());
         assertEquals("admin@acme.com", response.user().email());
         assertEquals("Acme Corp", response.organization().name());
 
@@ -105,12 +104,11 @@ class AuthServiceTest {
 
         when(userRepository.findByEmail("admin@acme.com")).thenReturn(Optional.of(mockUser));
         when(passwordEncoder.matches("securePassword123", "hashedPassword")).thenReturn(true);
-        when(jwtService.generateToken(mockUser)).thenReturn("mockJwtToken");
 
         AuthResponse response = authService.login(loginRequest);
 
         assertNotNull(response);
-        assertEquals("mockJwtToken", response.accessToken());
+        assertNotNull(response.accessToken());
         assertEquals("admin@acme.com", response.user().email());
     }
 

@@ -3,17 +3,17 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: opsflow_db
+    container_name: opus_db
     environment:
       POSTGRES_DB: ${DB_NAME:-opsflow_db}
-      POSTGRES_USER: ${DB_USER:-opsflow_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-opsflow_password}
+      POSTGRES_USER: ${DB_USER:postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:qwerty123}
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-opsflow_user} -d ${DB_NAME:-opsflow_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-opus_user} -d ${DB_NAME:-opus_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
