@@ -7,14 +7,14 @@ import java.util.UUID;
 public record OrganizationResponse(
     UUID id,
     String name,
-    String slug,
+    String slogan,
     boolean active
 ) {
     public static OrganizationResponse fromEntity(Organization organization) {
         return new OrganizationResponse(
             organization.getId(),
             organization.getName(),
-            organization.getSlogan(),
+            organization.getSlug(),
             organization.isActive()
         );
     }

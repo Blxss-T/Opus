@@ -1,0 +1,3 @@
+ALTER TABLE organizations
+DELETE COLUMN slogan VARCHAR(255);
+
