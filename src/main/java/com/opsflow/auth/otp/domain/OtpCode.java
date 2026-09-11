@@ -16,8 +16,8 @@ public class OtpCode extends BaseEntity {
     @Column(name = "email", nullable = false)
     private String email;
 
-    @Column(name = "code", nullable = false)
-    private String code;
+    @Column(name = "code_hash", nullable = false, length = 64)
+    private String codeHash;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false)
@@ -29,15 +29,19 @@ public class OtpCode extends BaseEntity {
     @Column(name = "used", nullable = false)
     private boolean used = false;
 
+    @Column(name = "attempt_count", nullable = false)
+    private int attemptCount = 0;
+
     public OtpCode() {
     }
 
-    public OtpCode(String email, String code, OtpType type, Instant expiresAt) {
+    public OtpCode(String email, String codeHash, OtpType type, Instant expiresAt) {
         this.email = email;
-        this.code = code;
+        this.codeHash = codeHash;
         this.type = type != null ? type : OtpType.EMAIL_VERIFICATION;
         this.expiresAt = expiresAt;
         this.used = false;
+        this.attemptCount = 0;
     }
 
     public String getEmail() {
@@ -48,12 +52,12 @@ public class OtpCode extends BaseEntity {
         this.email = email;
     }
 
-    public String getCode() {
-        return code;
+    public String getCodeHash() {
+        return codeHash;
     }
 
-    public void setCode(String code) {
-        this.code = code;
+    public void setCodeHash(String codeHash) {
+        this.codeHash = codeHash;
     }
 
     public OtpType getType() {
@@ -78,5 +82,13 @@ public class OtpCode extends BaseEntity {
 
     public void setUsed(boolean used) {
         this.used = used;
+    }
+
+    public int getAttemptCount() {
+        return attemptCount;
+    }
+
+    public void setAttemptCount(int attemptCount) {
+        this.attemptCount = attemptCount;
     }
 }

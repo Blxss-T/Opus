@@ -1,4 +1,4 @@
-package com.opsflow.auth.dto;
+    package com.opsflow.auth.dto;
 
 public record AuthResponse(
     String accessToken,

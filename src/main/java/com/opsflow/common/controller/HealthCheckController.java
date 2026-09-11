@@ -15,11 +15,11 @@ import java.util.Map;
 public class HealthCheckController {
 
     @GetMapping
-    @Operation(summary = "Get API Health Status", description = "Returns operational status and system details of the OpsFlow API service.")
+    @Operation(summary = "Get API Health Status", description = "Returns operational status and system details of the Opus API service.")
     public ApiResponse<Map<String, Object>> getHealthStatus() {
         Map<String, Object> statusInfo = Map.of(
             "status", "UP",
-            "service", "OpsFlow API Core",
+            "service", "Opus API Core",
             "environment", "active"
         );
         return ApiResponse.success(statusInfo);

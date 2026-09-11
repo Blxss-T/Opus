@@ -6,7 +6,7 @@ import com.opsflow.auth.dto.RegisterRequest;
 import com.opsflow.auth.security.JwtService;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.organizations.domain.Organization;
-import com.opsflow.organizations.repository.OrganizationRepository;
+import com.opsflow.organizations.service.OrganizationProvisioningService;
 import com.opsflow.users.domain.Role;
 import com.opsflow.users.domain.User;
 import com.opsflow.users.repository.UserRepository;
@@ -20,23 +20,25 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
     @Mock
-    private OrganizationRepository organizationRepository;
+    private OrganizationProvisioningService organizationProvisioningService;
 
     @Mock
     private UserRepository userRepository;
 
     @Mock
     private PasswordEncoder passwordEncoder;
-
-    private JwtService jwtService;
 
     private AuthService authService;
 
@@ -46,8 +48,8 @@ class AuthServiceTest {
     @BeforeEach
     void setUp() {
         String secret = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
-        jwtService = new JwtService(secret, 3600000);
-        authService = new AuthService(organizationRepository, userRepository, passwordEncoder, jwtService);
+        JwtService jwtService = new JwtService(secret, 3600000);
+        authService = new AuthService(organizationProvisioningService, userRepository, passwordEncoder, jwtService);
 
         registerRequest = new RegisterRequest(
             "Acme Corp",
@@ -63,12 +65,12 @@ class AuthServiceTest {
     @Test
     void shouldRegisterNewOrganizationAndUserSuccessfully() {
         when(userRepository.existsByEmail(any())).thenReturn(false);
-        when(organizationRepository.existsBySlug(any())).thenReturn(false);
         when(passwordEncoder.encode(any())).thenReturn("hashedPassword");
 
         Organization mockOrg = new Organization("Acme Corp", "acme-corp");
         mockOrg.setId(UUID.randomUUID());
-        when(organizationRepository.save(any(Organization.class))).thenReturn(mockOrg);
+        when(organizationProvisioningService.createOrganization("Acme Corp")).thenReturn(mockOrg);
+        when(userRepository.existsByOrganizationIdAndRole(mockOrg.getId(), Role.ORG_ADMIN)).thenReturn(false);
 
         User mockUser = new User(mockOrg, "admin@acme.com", "hashedPassword", "Jane", "Doe", Role.ORG_ADMIN);
         mockUser.setId(UUID.randomUUID());
@@ -81,7 +83,7 @@ class AuthServiceTest {
         assertEquals("admin@acme.com", response.user().email());
         assertEquals("Acme Corp", response.organization().name());
 
-        verify(organizationRepository).save(any(Organization.class));
+        verify(organizationProvisioningService).createOrganization("Acme Corp");
         verify(userRepository).save(any(User.class));
     }
 
@@ -90,8 +92,20 @@ class AuthServiceTest {
         when(userRepository.existsByEmail(registerRequest.email())).thenReturn(true);
 
         assertThrows(BusinessException.class, () -> authService.register(registerRequest));
-        verify(organizationRepository, never()).save(any());
+        verify(organizationProvisioningService, never()).createOrganization(any());
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldRejectSecondOrgAdmin() {
+        UUID orgId = UUID.randomUUID();
+        when(userRepository.existsByOrganizationIdAndRole(orgId, Role.ORG_ADMIN)).thenReturn(true);
+
+        BusinessException ex = assertThrows(
+            BusinessException.class,
+            () -> authService.validateSingleOrgAdminConstraint(orgId, Role.ORG_ADMIN)
+        );
+        assertEquals("ERR_422", ex.getErrorCode().getCode());
     }
 
     @Test

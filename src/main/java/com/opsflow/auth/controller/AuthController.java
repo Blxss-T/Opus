@@ -4,6 +4,8 @@ import com.opsflow.auth.dto.AuthResponse;
 import com.opsflow.auth.dto.LoginRequest;
 import com.opsflow.auth.dto.RegisterRequest;
 import com.opsflow.auth.dto.UserResponse;
+import com.opsflow.auth.google.dto.GoogleAuthRequest;
+import com.opsflow.auth.google.service.GoogleAuthService;
 import com.opsflow.auth.security.UserPrincipal;
 import com.opsflow.auth.service.AuthService;
 import com.opsflow.common.response.ApiResponse;
@@ -21,13 +23,15 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/auth")
-@Tag(name = "Authentication", description = "Endpoints for user registration, login, and token session verification")
+@Tag(name = "Authentication", description = "Endpoints for user registration, login, Google sign-in, and session verification")
 public class AuthController {
 
     private final AuthService authService;
+    private final GoogleAuthService googleAuthService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, GoogleAuthService googleAuthService) {
         this.authService = authService;
+        this.googleAuthService = googleAuthService;
     }
 
     @PostMapping("/register")
@@ -41,6 +45,13 @@ public class AuthController {
     @Operation(summary = "User Login", description = "Authenticates user credentials and returns a JWT Bearer access token.")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/google")
+    @Operation(summary = "Google Account Login", description = "Verifies a Google ID token and issues an Opus JWT. New users receive a personal organization.")
+    public ResponseEntity<ApiResponse<AuthResponse>> authenticateWithGoogle(@Valid @RequestBody GoogleAuthRequest request) {
+        AuthResponse response = googleAuthService.authenticateGoogleUser(request.idToken());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

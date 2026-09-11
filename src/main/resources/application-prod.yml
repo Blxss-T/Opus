@@ -1,0 +1,10 @@
+security:
+  jwt:
+    secret-key: ${JWT_SECRET}
+  google:
+    allow-mock-tokens: false
+
+management:
+  endpoint:
+    health:
+      show-details: never

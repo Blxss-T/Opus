@@ -8,10 +8,11 @@ import com.opsflow.auth.dto.AuthResponse;
 import com.opsflow.auth.dto.OrganizationResponse;
 import com.opsflow.auth.dto.UserResponse;
 import com.opsflow.auth.security.JwtService;
+import com.opsflow.auth.service.AuthService;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.common.exception.ErrorCode;
 import com.opsflow.organizations.domain.Organization;
-import com.opsflow.organizations.repository.OrganizationRepository;
+import com.opsflow.organizations.service.OrganizationProvisioningService;
 import com.opsflow.users.domain.Role;
 import com.opsflow.users.domain.User;
 import com.opsflow.users.repository.UserRepository;
@@ -22,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.Optional;
@@ -33,22 +35,28 @@ public class GoogleAuthService {
     private static final Logger log = LoggerFactory.getLogger(GoogleAuthService.class);
 
     private final UserRepository userRepository;
-    private final OrganizationRepository organizationRepository;
+    private final OrganizationProvisioningService organizationProvisioningService;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final AuthService authService;
     private final GoogleIdTokenVerifier verifier;
+    private final boolean allowMockTokens;
 
     public GoogleAuthService(
         UserRepository userRepository,
-        OrganizationRepository organizationRepository,
+        OrganizationProvisioningService organizationProvisioningService,
         PasswordEncoder passwordEncoder,
         JwtService jwtService,
-        @Value("${security.google.client-id:dummy-client-id}") String googleClientId
+        AuthService authService,
+        @Value("${security.google.client-id:dummy-client-id}") String googleClientId,
+        @Value("${security.google.allow-mock-tokens:false}") boolean allowMockTokens
     ) {
         this.userRepository = userRepository;
-        this.organizationRepository = organizationRepository;
+        this.organizationProvisioningService = organizationProvisioningService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.authService = authService;
+        this.allowMockTokens = allowMockTokens;
         this.verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), GsonFactory.getDefaultInstance())
             .setAudience(Collections.singletonList(googleClientId))
             .build();
@@ -71,17 +79,9 @@ public class GoogleAuthService {
                 throw new BusinessException(ErrorCode.FORBIDDEN, "Account or organization is inactive");
             }
         } else {
-            // Provision new Organization and User for Google Account
             String orgName = (googleUser.firstName() != null ? googleUser.firstName() : "User") + "'s Organization";
-            String baseSlug = generateSlug(orgName);
-            String slug = baseSlug;
-            int counter = 1;
-            while (organizationRepository.existsBySlug(slug)) {
-                slug = baseSlug + "-" + counter++;
-            }
-
-            organization = new Organization(orgName, slug);
-            organization = organizationRepository.save(organization);
+            organization = organizationProvisioningService.createOrganization(orgName);
+            authService.validateSingleOrgAdminConstraint(organization.getId(), Role.ORG_ADMIN);
 
             String randomPassword = passwordEncoder.encode(UUID.randomUUID().toString());
             user = new User(
@@ -92,6 +92,7 @@ public class GoogleAuthService {
                 googleUser.lastName() != null ? googleUser.lastName() : "User",
                 Role.ORG_ADMIN
             );
+            user.setEmailVerifiedAt(Instant.now());
             user = userRepository.save(user);
         }
 
@@ -118,8 +119,7 @@ public class GoogleAuthService {
             log.warn("Google ID token verification failed: {}", ex.getMessage());
         }
 
-        // Dev mode fallback for test tokens (e.g. "mock-google-token:user@gmail.com:John:Doe")
-        if (idTokenString.startsWith("mock-google-token:")) {
+        if (allowMockTokens && idTokenString != null && idTokenString.startsWith("mock-google-token:")) {
             String[] parts = idTokenString.split(":");
             String email = parts.length > 1 ? parts[1] : "googleuser@gmail.com";
             String firstName = parts.length > 2 ? parts[2] : "Google";
@@ -128,18 +128,6 @@ public class GoogleAuthService {
         }
 
         throw new BusinessException(ErrorCode.UNAUTHORIZED, "Invalid Google ID token");
-    }
-
-    private String generateSlug(String name) {
-        if (name == null || name.isBlank()) {
-            return "org-" + UUID.randomUUID().toString().substring(0, 8);
-        }
-        String slug = name.toLowerCase(Locale.ROOT)
-            .replaceAll("[^a-z0-9\\s-]", "")
-            .replaceAll("\\s+", "-")
-            .replaceAll("-+", "-")
-            .replaceAll("^-|-$", "");
-        return slug.isBlank() ? "org-" + UUID.randomUUID().toString().substring(0, 8) : slug;
     }
 
     public record GoogleUserInfo(String email, String firstName, String lastName) {}

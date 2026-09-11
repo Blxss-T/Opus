@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -18,12 +19,14 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import java.time.Instant;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -41,20 +44,24 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationEntryPoint customAuthenticationEntryPoint() {
-        return (request, response, authException) -> {
-            response.setStatus(HttpStatus.UNAUTHORIZED.value());
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        return (request, response, authException) -> writeSecurityError(
+            request.getRequestURI(),
+            response,
+            HttpStatus.UNAUTHORIZED,
+            ErrorCode.UNAUTHORIZED,
+            "Full authentication is required to access this resource"
+        );
+    }
 
-            ErrorResponse errorResponse = ErrorResponse.builder()
-                .status(HttpStatus.UNAUTHORIZED.value())
-                .error(ErrorCode.UNAUTHORIZED.getCode())
-                .message("Full authentication is required to access this resource")
-                .path(request.getRequestURI())
-                .timestamp(Instant.now())
-                .build();
-
-            response.getWriter().write(objectMapper.writeValueAsString(ApiResponse.error(errorResponse)));
-        };
+    @Bean
+    public AccessDeniedHandler customAccessDeniedHandler() {
+        return (request, response, accessDeniedException) -> writeSecurityError(
+            request.getRequestURI(),
+            response,
+            HttpStatus.FORBIDDEN,
+            ErrorCode.FORBIDDEN,
+            "Access denied for requested operation"
+        );
     }
 
     @Bean
@@ -62,13 +69,20 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .exceptionHandling(ex -> ex.authenticationEntryPoint(customAuthenticationEntryPoint()))
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint(customAuthenticationEntryPoint())
+                .accessDeniedHandler(customAccessDeniedHandler())
+            )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/api/v1/health",
                     "/api/v1/auth/register",
                     "/api/v1/auth/login",
-                    "/actuator/**",
+                    "/api/v1/auth/google",
+                    "/api/v1/auth/otp/**",
+                    "/actuator/health",
+                    "/actuator/health/**",
+                    "/actuator/info",
                     "/v3/api-docs/**",
                     "/swagger-ui/**",
                     "/swagger-ui.html"
@@ -78,5 +92,26 @@ public class SecurityConfig {
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    private void writeSecurityError(
+        String path,
+        HttpServletResponse response,
+        HttpStatus status,
+        ErrorCode errorCode,
+        String message
+    ) throws java.io.IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+            .status(status.value())
+            .error(errorCode.getCode())
+            .message(message)
+            .path(path)
+            .timestamp(Instant.now())
+            .build();
+
+        response.getWriter().write(objectMapper.writeValueAsString(ApiResponse.error(errorResponse)));
     }
 }

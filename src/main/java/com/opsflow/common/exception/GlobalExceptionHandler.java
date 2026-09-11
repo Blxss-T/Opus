@@ -6,8 +6,10 @@ import com.opsflow.common.response.FieldErrorDetail;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -59,6 +61,37 @@ public class GlobalExceptionHandler {
             .build();
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(errorResponse));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+        log.warn("Access denied at path '{}': {}", request.getRequestURI(), ex.getMessage());
+        ErrorResponse errorResponse = ErrorResponse.builder()
+            .status(HttpStatus.FORBIDDEN.value())
+            .error(ErrorCode.FORBIDDEN.getCode())
+            .message("Access denied for requested operation")
+            .path(request.getRequestURI())
+            .timestamp(Instant.now())
+            .build();
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error(errorResponse));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException ex, HttpServletRequest request) {
+        log.warn("Data integrity violation at path '{}': {}", request.getRequestURI(), ex.getMostSpecificCause().getMessage());
+        String message = "A uniqueness or integrity constraint was violated";
+        String cause = ex.getMostSpecificCause().getMessage();
+        if (cause != null && cause.contains("uk_users_one_org_admin")) {
+            message = "An organization can only have one ORG_ADMIN during the pilot phase";
+        }
+        ErrorResponse errorResponse = ErrorResponse.builder()
+            .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
+            .error(ErrorCode.BUSINESS_RULE_VIOLATION.getCode())
+            .message(message)
+            .path(request.getRequestURI())
+            .timestamp(Instant.now())
+            .build();
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(ApiResponse.error(errorResponse));
     }
 
     @ExceptionHandler(NoHandlerFoundException.class)

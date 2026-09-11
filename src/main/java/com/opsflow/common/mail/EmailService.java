@@ -32,10 +32,6 @@ public class EmailService {
                 log.warn("SMTP mail delivery failed, falling back to log mode: {}", ex.getMessage());
             }
         }
-        log.info("=== [DEV EMAIL SERVICE LOG] ===");
-        log.info("TO: {}", to);
-        log.info("SUBJECT: {}", subject);
-        log.info("BODY:\n{}", body);
-        log.info("===============================");
+        log.info("Dev email fallback: message queued for '{}' with subject '{}' (body omitted)", to, subject);
     }
 }

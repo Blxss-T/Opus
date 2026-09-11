@@ -27,6 +27,6 @@ class HealthCheckControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.status").value("UP"))
-            .andExpect(jsonPath("$.data.service").value("OpsFlow API Core"));
+            .andExpect(jsonPath("$.data.service").value("Opus API Core"));
     }
 }

@@ -12,7 +12,8 @@ public record UserResponse(
     String firstName,
     String lastName,
     Role role,
-    boolean active
+    boolean active,
+    boolean emailVerified
 ) {
     public static UserResponse fromEntity(User user) {
         return new UserResponse(
@@ -22,7 +23,8 @@ public record UserResponse(
             user.getFirstName(),
             user.getLastName(),
             user.getRole(),
-            user.isActive()
+            user.isActive(),
+            user.getEmailVerifiedAt() != null
         );
     }
 }

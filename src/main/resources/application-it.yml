@@ -1,0 +1,16 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+
+security:
+  google:
+    allow-mock-tokens: true
+
+logging:
+  level:
+    root: WARN
+    com.opsflow: INFO

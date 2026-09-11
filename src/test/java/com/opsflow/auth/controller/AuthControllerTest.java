@@ -3,6 +3,7 @@ package com.opsflow.auth.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opsflow.auth.dto.LoginRequest;
 import com.opsflow.auth.dto.RegisterRequest;
+import com.opsflow.employees.repository.EmployeeRepository;
 import com.opsflow.organizations.repository.OrganizationRepository;
 import com.opsflow.users.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;

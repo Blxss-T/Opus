@@ -10,6 +10,14 @@ spring:
       ddl-auto: create-drop
   flyway:
     enabled: false
+  mail:
+    host:
+
+security:
+  google:
+    allow-mock-tokens: true
+  otp:
+    pepper: test-otp-pepper
 
 logging:
   level:
