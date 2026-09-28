@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
+import org.checkerframework.checker.optional.qual.Present;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -23,6 +24,7 @@ public abstract class BaseEntity {
     private UUID id;
 
     @CreatedDate
+    @Present
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

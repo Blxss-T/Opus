@@ -10,6 +10,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.Email;
 
 import java.time.Instant;
 
@@ -22,6 +23,7 @@ public class User extends BaseEntity {
     private Organization organization;
 
     @Column(name = "email", nullable = false, unique = true)
+    @Email
     private String email;
 
     @Column(name = "password_hash", nullable = false)
