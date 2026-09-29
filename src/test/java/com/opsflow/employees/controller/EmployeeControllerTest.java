@@ -11,6 +11,7 @@ import com.opsflow.organizations.domain.Organization;
 import com.opsflow.organizations.repository.OrganizationRepository;
 import com.opsflow.users.domain.Role;
 import com.opsflow.users.domain.User;
+import com.opsflow.testsupport.TestDatabaseCleaner;
 import com.opsflow.users.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,6 +54,9 @@ class EmployeeControllerTest {
     @Autowired
     private JwtService jwtService;
 
+    @Autowired
+    private TestDatabaseCleaner testDatabaseCleaner;
+
     private Organization orgA;
     private Organization orgB;
 
@@ -68,9 +72,8 @@ class EmployeeControllerTest {
 
     @BeforeEach
     void setUp() {
-        employeeRepository.deleteAll();
-        userRepository.deleteAll();
-        organizationRepository.deleteAll();
+        // Reset the shared H2 test database in FK-safe order
+        testDatabaseCleaner.clean();
 
         orgA = organizationRepository.save(new Organization("Alpha Corp", "alpha-corp"));
         orgB = organizationRepository.save(new Organization("Beta LLC", "beta-llc"));

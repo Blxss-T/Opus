@@ -15,6 +15,7 @@ import com.opsflow.purchasing.repository.PurchaseOrderItemRepository;
 import com.opsflow.purchasing.repository.PurchaseOrderRepository;
 import com.opsflow.suppliers.domain.Supplier;
 import com.opsflow.suppliers.repository.SupplierRepository;
+import com.opsflow.testsupport.TestDatabaseCleaner;
 import com.opsflow.users.domain.Role;
 import com.opsflow.users.domain.User;
 import com.opsflow.users.repository.UserRepository;
@@ -78,6 +79,9 @@ class PurchaseOrderControllerTest {
     @Autowired
     private JwtService jwtService;
 
+    @Autowired
+    private TestDatabaseCleaner testDatabaseCleaner;
+
     private Organization orgA;
     private Organization orgB;
 
@@ -92,14 +96,8 @@ class PurchaseOrderControllerTest {
 
     @BeforeEach
     void setUp() {
-        purchaseOrderItemRepository.deleteAll();
-        purchaseOrderRepository.deleteAll();
-        inventoryMovementRepository.deleteAll();
-        productRepository.deleteAll();
-        supplierRepository.deleteAll();
-        employeeRepository.deleteAll();
-        userRepository.deleteAll();
-        organizationRepository.deleteAll();
+        // Reset the shared H2 test database in FK-safe order
+        testDatabaseCleaner.clean();
 
         orgA = organizationRepository.save(new Organization("Alpha Corp", "alpha-corp"));
         orgB = organizationRepository.save(new Organization("Beta LLC", "beta-llc"));

@@ -9,6 +9,7 @@ import com.opsflow.suppliers.dto.CreateSupplierRequest;
 import com.opsflow.suppliers.repository.SupplierRepository;
 import com.opsflow.users.domain.Role;
 import com.opsflow.users.domain.User;
+import com.opsflow.testsupport.TestDatabaseCleaner;
 import com.opsflow.users.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,6 +57,9 @@ class SupplierControllerTest {
     @Autowired
     private JwtService jwtService;
 
+    @Autowired
+    private TestDatabaseCleaner testDatabaseCleaner;
+
     private Organization orgA;
     private Organization orgB;
 
@@ -69,12 +73,8 @@ class SupplierControllerTest {
 
     @BeforeEach
     void setUp() {
-        inventoryMovementRepository.deleteAll();
-        productRepository.deleteAll();
-        supplierRepository.deleteAll();
-        employeeRepository.deleteAll();
-        userRepository.deleteAll();
-        organizationRepository.deleteAll();
+        // Reset the shared H2 test database in FK-safe order
+        testDatabaseCleaner.clean();
 
         orgA = organizationRepository.save(new Organization("Alpha Corp", "alpha-corp"));
         orgB = organizationRepository.save(new Organization("Beta LLC", "beta-llc"));

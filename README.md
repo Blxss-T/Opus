@@ -12,6 +12,8 @@ Increments 1-4:
 - Pilot rule: at most one `ORG_ADMIN` per organization (Java check + unique partial index)
 - Employees: org-scoped CRUD with role rules and tenant isolation
 - Customers: org-scoped CRUD against Flyway V9 (`uk_customers_org_email`), soft delete
+- Suppliers & Purchase Orders: vendor CRUD, PO lifecycle `DRAFT -> ORDERED -> RECEIVED/CANCELLED`, automatic inventory replenishment on receiving (Flyway V8)
+- Sales Orders: customer sales with lifecycle `DRAFT -> CONFIRMED -> FULFILLED/CANCELLED`, automatic inventory depletion on fulfillment (Flyway V10)
 
 ## Stack
 
@@ -96,6 +98,50 @@ Organization is taken from the JWT, never from the client body. Email is unique 
 | GET | `/customers/{id}` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
 | PUT | `/customers/{id}` | `ORG_ADMIN`, `MANAGER` |
 | DELETE | `/customers/{id}` | `ORG_ADMIN`, `MANAGER` |
+
+## Supplier APIs
+
+| Method | Path | Roles |
+| --- | --- | --- |
+| GET | `/suppliers` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
+| POST | `/suppliers` | `ORG_ADMIN`, `MANAGER` |
+| GET | `/suppliers/{id}` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
+| PUT | `/suppliers/{id}` | `ORG_ADMIN`, `MANAGER` |
+| DELETE | `/suppliers/{id}` | `ORG_ADMIN`, `MANAGER` |
+
+## Product APIs
+
+| Method | Path | Roles |
+| --- | --- | --- |
+| POST | `/products` | `ORG_ADMIN`, `MANAGER` |
+| GET | `/products` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
+| GET | `/products/{id}` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
+| PUT | `/products/{id}` | `ORG_ADMIN`, `MANAGER` |
+| DELETE | `/products/{id}` | `ORG_ADMIN`, `MANAGER` |
+| POST | `/products/{id}/adjust-stock` | `ORG_ADMIN`, `MANAGER` |
+| GET | `/products/{id}/movements` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
+
+## Purchase Order APIs
+
+Organization is taken from the JWT, never from the client body. PO numbers are generated per organization (`PO-YYYY-####`). Receiving a PO automatically creates `INBOUND` stock movements.
+
+| Method | Path | Roles |
+| --- | --- | --- |
+| POST | `/purchase-orders` | `ORG_ADMIN`, `MANAGER` |
+| GET | `/purchase-orders` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
+| GET | `/purchase-orders/{id}` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
+| PATCH | `/purchase-orders/{id}/status` | `ORG_ADMIN`, `MANAGER` |
+
+## Sales Order APIs
+
+Organization is taken from the JWT, never from the client body. SO numbers are generated per organization (`SO-YYYY-####`). Fulfilling an SO automatically creates `OUTBOUND` stock movements and fails atomically if stock is insufficient.
+
+| Method | Path | Roles |
+| --- | --- | --- |
+| POST | `/sales-orders` | `ORG_ADMIN`, `MANAGER` |
+| GET | `/sales-orders` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
+| GET | `/sales-orders/{id}` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
+| PATCH | `/sales-orders/{id}/status` | `ORG_ADMIN`, `MANAGER` |
 
 ## Environment
 
