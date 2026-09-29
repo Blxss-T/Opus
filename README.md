@@ -11,6 +11,7 @@ Increments 1-4:
 - Auth: register, login, current user, email OTP (verification proof), Google ID token sign-in
 - Pilot rule: at most one `ORG_ADMIN` per organization (Java check + unique partial index)
 - Employees: org-scoped CRUD with role rules and tenant isolation
+- Customers: org-scoped CRUD against Flyway V9 (`uk_customers_org_email`), soft delete
 
 ## Stack
 
@@ -83,6 +84,18 @@ Organization is taken from the JWT, never from the client body.
 | GET | `/employees/{id}` | `ORG_ADMIN`, `MANAGER`; `EMPLOYEE` only for self |
 | PUT | `/employees/{id}` | `ORG_ADMIN`, `MANAGER` |
 | DELETE | `/employees/{id}` | `ORG_ADMIN` (marks `TERMINATED`) |
+
+## Customer APIs
+
+Organization is taken from the JWT, never from the client body. Email is unique per organization (normalized to lowercase). Delete is a soft delete (`active = false`).
+
+| Method | Path | Roles |
+| --- | --- | --- |
+| GET | `/customers` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
+| POST | `/customers` | `ORG_ADMIN`, `MANAGER` |
+| GET | `/customers/{id}` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
+| PUT | `/customers/{id}` | `ORG_ADMIN`, `MANAGER` |
+| DELETE | `/customers/{id}` | `ORG_ADMIN`, `MANAGER` |
 
 ## Environment
 
