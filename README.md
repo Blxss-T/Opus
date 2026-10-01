@@ -14,6 +14,7 @@ Increments 1-4:
 - Customers: org-scoped CRUD against Flyway V9 (`uk_customers_org_email`), soft delete
 - Suppliers & Purchase Orders: vendor CRUD, PO lifecycle `DRAFT -> ORDERED -> RECEIVED/CANCELLED`, automatic inventory replenishment on receiving (Flyway V8)
 - Sales Orders: customer sales with lifecycle `DRAFT -> CONFIRMED -> FULFILLED/CANCELLED`, automatic inventory depletion on fulfillment (Flyway V10)
+- Reporting & Dashboard: read-only aggregated metrics (revenue, spend, low-stock alerts, top customers/suppliers, category breakdowns, daily/monthly sales trends) with tenant isolation
 
 ## Stack
 
@@ -142,6 +143,21 @@ Organization is taken from the JWT, never from the client body. SO numbers are g
 | GET | `/sales-orders` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
 | GET | `/sales-orders/{id}` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
 | PATCH | `/sales-orders/{id}/status` | `ORG_ADMIN`, `MANAGER` |
+
+## Reporting APIs
+
+All metrics are scoped to the caller's organization. Revenue counts `FULFILLED` sales orders; spend counts `RECEIVED` purchase orders. Drafts and cancelled orders are excluded.
+
+| Method | Path | Roles | Purpose |
+| --- | --- | --- | --- |
+| GET | `/reports/dashboard` | `ORG_ADMIN`, `MANAGER` | Aggregate counters: products, low stock, customers, suppliers, orders, revenue, spend, 30-day movements, SO status breakdown |
+| GET | `/reports/dashboard/low-stock` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` | Active products at or below reorder level (most urgent first) |
+| GET | `/reports/sales/by-category` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` | Fulfilled sales revenue by product category |
+| GET | `/reports/purchases/by-category` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` | Received purchase spend by product category |
+| GET | `/reports/sales/top-customers` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` | Customers ranked by fulfilled revenue (`limit`, default 5, max 25) |
+| GET | `/reports/purchases/top-suppliers` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` | Suppliers ranked by received spend (`limit`, default 5, max 25) |
+| GET | `/reports/sales/daily` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` | Fulfilled sales per day, last 30 days |
+| GET | `/reports/sales/monthly-trend` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` | Fulfilled sales per month |
 
 ## Environment
 
