@@ -1,6 +1,8 @@
 package com.opsflow.auth.security;
 
 import com.opsflow.users.domain.Role;
+import com.opsflow.users.domain.User;
+import com.opsflow.users.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,9 +22,11 @@ import java.util.UUID;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final UserRepository userRepository;
 
-    public JwtAuthenticationFilter(JwtService jwtService) {
+    public JwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository) {
         this.jwtService = jwtService;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -39,6 +43,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             UUID userId = jwtService.getUserIdFromToken(jwt);
             UUID organizationId = jwtService.getOrganizationIdFromToken(jwt);
             Role role = jwtService.getRoleFromToken(jwt);
+
+            // Re-check the account on every request: rejects tokens for
+            // deactivated users and tokens issued before the last password
+            // change/reset (passwordChangedAt invalidation).
+            User user = userRepository.findById(userId).orElse(null);
+            if (user == null || !user.isActive()) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+            java.time.Instant issuedAt = jwtService.getIssuedAtFromToken(jwt);
+            java.time.Instant passwordChangedAt = user.getPasswordChangedAt();
+            if (issuedAt != null && passwordChangedAt != null && issuedAt.isBefore(passwordChangedAt)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
 
             UserPrincipal principal = new UserPrincipal(userId, organizationId, email, "", role, true);
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(

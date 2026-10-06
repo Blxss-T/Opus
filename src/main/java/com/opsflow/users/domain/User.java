@@ -45,6 +45,14 @@ public class User extends BaseEntity {
     @Column(name = "email_verified_at")
     private Instant emailVerifiedAt;
 
+    /**
+     * Set on password change or reset. JWT access tokens issued before this
+     * instant are rejected during validation, closing the session-invalidation
+     * gap for stolen access tokens after credential rotation.
+     */
+    @Column(name = "password_changed_at")
+    private Instant passwordChangedAt;
+
     public User() {
     }
 
@@ -120,5 +128,13 @@ public class User extends BaseEntity {
 
     public void setEmailVerifiedAt(Instant emailVerifiedAt) {
         this.emailVerifiedAt = emailVerifiedAt;
+    }
+
+    public Instant getPasswordChangedAt() {
+        return passwordChangedAt;
+    }
+
+    public void setPasswordChangedAt(Instant passwordChangedAt) {
+        this.passwordChangedAt = passwordChangedAt;
     }
 }

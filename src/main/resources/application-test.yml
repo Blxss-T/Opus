@@ -18,6 +18,8 @@ security:
     allow-mock-tokens: true
   otp:
     pepper: test-otp-pepper
+  rate-limit:
+    enabled: false
 
 logging:
   level:

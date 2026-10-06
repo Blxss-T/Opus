@@ -7,6 +7,7 @@ import com.opsflow.auth.dto.RegisterRequest;
 import com.opsflow.auth.dto.UserResponse;
 import com.opsflow.auth.security.JwtService;
 import com.opsflow.auth.security.UserPrincipal;
+import com.opsflow.auth.session.service.RefreshTokenService;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.common.exception.ErrorCode;
 import com.opsflow.common.exception.ResourceNotFoundException;
@@ -19,6 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -29,17 +31,20 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
 
     public AuthService(
         OrganizationProvisioningService organizationProvisioningService,
         UserRepository userRepository,
         PasswordEncoder passwordEncoder,
-        JwtService jwtService
+        JwtService jwtService,
+        RefreshTokenService refreshTokenService
     ) {
         this.organizationProvisioningService = organizationProvisioningService;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Transactional
@@ -63,9 +68,11 @@ public class AuthService {
         user = userRepository.save(user);
 
         String token = jwtService.generateToken(user);
+        String refreshToken = refreshTokenService.issueToken(user);
 
         return AuthResponse.of(
             token,
+            refreshToken,
             UserResponse.fromEntity(user),
             OrganizationResponse.fromEntity(organization)
         );
@@ -119,12 +126,66 @@ public class AuthService {
         }
 
         String token = jwtService.generateToken(user);
+        String refreshToken = refreshTokenService.issueToken(user);
 
         return AuthResponse.of(
             token,
+            refreshToken,
             UserResponse.fromEntity(user),
             OrganizationResponse.fromEntity(user.getOrganization())
         );
+    }
+
+    /**
+     * Exchanges a valid refresh token for a new JWT + rotated refresh token.
+     * Reuse of an already-consumed token revokes all sessions for the user.
+     */
+    @Transactional
+    public AuthResponse refreshSession(String rawRefreshToken) {
+        User user = refreshTokenService.consumeToken(rawRefreshToken);
+
+        if (!user.isActive() || !user.getOrganization().isActive()) {
+            refreshTokenService.revokeAllForUser(user.getId());
+            throw new BusinessException(ErrorCode.FORBIDDEN, "Account or organization is inactive");
+        }
+
+        String token = jwtService.generateToken(user);
+        String refreshToken = refreshTokenService.issueToken(user);
+
+        return AuthResponse.of(
+            token,
+            refreshToken,
+            UserResponse.fromEntity(user),
+            OrganizationResponse.fromEntity(user.getOrganization())
+        );
+    }
+
+    /**
+     * Revokes every refresh token session for the user (logout everywhere).
+     */
+    @Transactional
+    public void logout(UserPrincipal principal) {
+        refreshTokenService.revokeAllForUser(principal.getId());
+    }
+
+    /**
+     * Changes the password after verifying the current one, then revokes all
+     * existing refresh sessions. Future JWT validation also rejects tokens
+     * issued before this moment via passwordChangedAt.
+     */
+    @Transactional
+    public void changePassword(UserPrincipal principal, String currentPassword, String newPassword) {
+        User user = userRepository.findById(principal.getId())
+            .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED, "Unauthenticated request"));
+
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "Current password is incorrect");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setPasswordChangedAt(Instant.now());
+        userRepository.save(user);
+        refreshTokenService.revokeAllForUser(user.getId());
     }
 
     @Transactional(readOnly = true)

@@ -69,6 +69,12 @@ security:
   jwt:
     secret-key: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  refresh-token:
+    ttl: ${REFRESH_TOKEN_TTL:10080}  # minutes; 7 days
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    limit: ${RATE_LIMIT_LIMIT:10}     # requests per window per IP per endpoint
+    window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
   google:
     client-id: ${GOOGLE_CLIENT_ID:dummy-client-id}
     allow-mock-tokens: ${GOOGLE_ALLOW_MOCK_TOKENS:false}

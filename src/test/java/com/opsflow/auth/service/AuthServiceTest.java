@@ -4,6 +4,7 @@ import com.opsflow.auth.dto.AuthResponse;
 import com.opsflow.auth.dto.LoginRequest;
 import com.opsflow.auth.dto.RegisterRequest;
 import com.opsflow.auth.security.JwtService;
+import com.opsflow.auth.session.service.RefreshTokenService;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.organizations.domain.Organization;
 import com.opsflow.organizations.service.OrganizationProvisioningService;
@@ -40,6 +41,9 @@ class AuthServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private RefreshTokenService refreshTokenService;
+
     private AuthService authService;
 
     private RegisterRequest registerRequest;
@@ -49,7 +53,7 @@ class AuthServiceTest {
     void setUp() {
         String secret = "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970";
         JwtService jwtService = new JwtService(secret, 3600000);
-        authService = new AuthService(organizationProvisioningService, userRepository, passwordEncoder, jwtService);
+        authService = new AuthService(organizationProvisioningService, userRepository, passwordEncoder, jwtService, refreshTokenService);
 
         registerRequest = new RegisterRequest(
             "Acme Corp",

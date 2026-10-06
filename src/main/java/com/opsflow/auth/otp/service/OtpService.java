@@ -27,6 +27,18 @@ public class OtpService {
     static final int MAX_ATTEMPTS = 5;
     static final Duration SEND_COOLDOWN = Duration.ofSeconds(60);
 
+    private static final String DEFAULT_SUBJECT = "Opus - Verification Code";
+    private static final String DEFAULT_BODY = """
+        Hello,
+
+        Your Opus verification code is: %s
+
+        This code will expire in 10 minutes. If you did not request this, please ignore this email.
+
+        Regards,
+        Opus Engineering Team
+        """;
+
     private final OtpRepository otpRepository;
     private final EmailService emailService;
     private final UserRepository userRepository;
@@ -50,6 +62,15 @@ public class OtpService {
 
     @Transactional
     public OtpCode sendOtp(String email, OtpType type) {
+        return sendOtp(email, type, null, null);
+    }
+
+    /**
+     * Sends an OTP with an optional subject/body override. The body template
+     * must contain a single %s placeholder for the raw code.
+     */
+    @Transactional
+    public OtpCode sendOtp(String email, OtpType type, String subjectOverride, String bodyTemplate) {
         String cleanEmail = email.toLowerCase(Locale.ROOT).trim();
         OtpType otpType = type != null ? type : OtpType.EMAIL_VERIFICATION;
         enforceSendCooldown(cleanEmail, otpType);
@@ -61,17 +82,8 @@ public class OtpService {
         OtpCode otpCode = new OtpCode(cleanEmail, hashCode(cleanEmail, rawCode), otpType, expiresAt);
         otpCode = otpRepository.save(otpCode);
 
-        String subject = "Opus - Verification Code";
-        String body = """
-            Hello,
-
-            Your Opus verification code is: %s
-
-            This code will expire in 10 minutes. If you did not request this, please ignore this email.
-
-            Regards,
-            Opus Engineering Team
-            """.formatted(rawCode);
+        String subject = subjectOverride != null ? subjectOverride : DEFAULT_SUBJECT;
+        String body = bodyTemplate != null ? bodyTemplate.formatted(rawCode) : DEFAULT_BODY.formatted(rawCode);
 
         emailService.sendEmail(cleanEmail, subject, body);
         lastSendByKey.put(cooldownKey(cleanEmail, otpType), Instant.now());

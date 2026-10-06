@@ -2,9 +2,7 @@ package com.opsflow.auth.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opsflow.auth.otp.service.OtpCodeGenerator;
-import com.opsflow.employees.repository.EmployeeRepository;
-import com.opsflow.organizations.repository.OrganizationRepository;
-import com.opsflow.users.repository.UserRepository;
+import com.opsflow.testsupport.TestDatabaseCleaner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,22 +30,14 @@ class OtpAndGoogleAuthControllerTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private OrganizationRepository organizationRepository;
-
-    @Autowired
-    private EmployeeRepository employeeRepository;
+    private TestDatabaseCleaner testDatabaseCleaner;
 
     @MockBean
     private OtpCodeGenerator otpCodeGenerator;
 
     @BeforeEach
     void setUp() {
-        employeeRepository.deleteAll();
-        userRepository.deleteAll();
-        organizationRepository.deleteAll();
+        testDatabaseCleaner.clean();
         when(otpCodeGenerator.generate()).thenReturn("123456");
     }
 

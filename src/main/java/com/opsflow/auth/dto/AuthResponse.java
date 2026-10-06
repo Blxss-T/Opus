@@ -2,11 +2,12 @@
 
 public record AuthResponse(
     String accessToken,
+    String refreshToken,
     String tokenType,
     UserResponse user,
     OrganizationResponse organization
 ) {
-    public static AuthResponse of(String accessToken, UserResponse user, OrganizationResponse organization) {
-        return new AuthResponse(accessToken, "Bearer", user, organization);
+    public static AuthResponse of(String accessToken, String refreshToken, UserResponse user, OrganizationResponse organization) {
+        return new AuthResponse(accessToken, refreshToken, "Bearer", user, organization);
     }
 }

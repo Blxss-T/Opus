@@ -9,6 +9,7 @@ import com.opsflow.auth.dto.OrganizationResponse;
 import com.opsflow.auth.dto.UserResponse;
 import com.opsflow.auth.security.JwtService;
 import com.opsflow.auth.service.AuthService;
+import com.opsflow.auth.session.service.RefreshTokenService;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.common.exception.ErrorCode;
 import com.opsflow.organizations.domain.Organization;
@@ -39,6 +40,7 @@ public class GoogleAuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthService authService;
+    private final RefreshTokenService refreshTokenService;
     private final GoogleIdTokenVerifier verifier;
     private final boolean allowMockTokens;
 
@@ -48,6 +50,7 @@ public class GoogleAuthService {
         PasswordEncoder passwordEncoder,
         JwtService jwtService,
         AuthService authService,
+        RefreshTokenService refreshTokenService,
         @Value("${security.google.client-id:dummy-client-id}") String googleClientId,
         @Value("${security.google.allow-mock-tokens:false}") boolean allowMockTokens
     ) {
@@ -56,6 +59,7 @@ public class GoogleAuthService {
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authService = authService;
+        this.refreshTokenService = refreshTokenService;
         this.allowMockTokens = allowMockTokens;
         this.verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), GsonFactory.getDefaultInstance())
             .setAudience(Collections.singletonList(googleClientId))
@@ -97,9 +101,11 @@ public class GoogleAuthService {
         }
 
         String jwtToken = jwtService.generateToken(user);
+        String refreshToken = refreshTokenService.issueToken(user);
 
         return AuthResponse.of(
             jwtToken,
+            refreshToken,
             UserResponse.fromEntity(user),
             OrganizationResponse.fromEntity(organization)
         );

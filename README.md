@@ -15,6 +15,7 @@ Increments 1-4:
 - Suppliers & Purchase Orders: vendor CRUD, PO lifecycle `DRAFT -> ORDERED -> RECEIVED/CANCELLED`, automatic inventory replenishment on receiving (Flyway V8)
 - Sales Orders: customer sales with lifecycle `DRAFT -> CONFIRMED -> FULFILLED/CANCELLED`, automatic inventory depletion on fulfillment (Flyway V10)
 - Reporting & Dashboard: read-only aggregated metrics (revenue, spend, low-stock alerts, top customers/suppliers, category breakdowns, daily/monthly sales trends) with tenant isolation
+- Sessions & Hardening: refresh token rotation with reuse detection, logout, password change/reset (OTP-based), password-changed session invalidation, and IP rate limiting on public auth endpoints
 
 ## Stack
 
@@ -72,6 +73,11 @@ PostgreSQL Testcontainers tests use the `it` profile and require Docker.
 | GET | `/auth/me` | JWT | Current user |
 | POST | `/auth/otp/send` | public | Send 6-digit email OTP (hashed at rest, 10 minute expiry) |
 | POST | `/auth/otp/verify` | public | Verify OTP; sets `email_verified_at` when a user exists |
+| POST | `/auth/refresh` | public (refresh token) | Exchange refresh token for a new JWT + rotated refresh token; reuse revokes all sessions |
+| POST | `/auth/logout` | JWT | Revoke all refresh token sessions for the current user |
+| POST | `/auth/password/change` | JWT | Change password (current password required); revokes all sessions |
+| POST | `/auth/password/forgot` | public | Send password reset code; response never reveals account existence |
+| POST | `/auth/password/reset` | public | Reset password with emailed code; revokes all sessions |
 
 Google mock tokens (`mock-google-token:email:First:Last`) work only when `security.google.allow-mock-tokens=true` (dev/test). Production must set `GOOGLE_CLIENT_ID` and a unique `JWT_SECRET`.
 
@@ -159,6 +165,16 @@ All metrics are scoped to the caller's organization. Revenue counts `FULFILLED` 
 | GET | `/reports/sales/daily` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` | Fulfilled sales per day, last 30 days |
 | GET | `/reports/sales/monthly-trend` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` | Fulfilled sales per month |
 
+## Sessions
+
+- Access tokens are short-lived JWTs; refresh tokens are random 256-bit values stored only as SHA-256 hashes (`refresh_tokens` table, 7-day TTL by default via `REFRESH_TOKEN_TTL` minutes).
+- Refresh tokens are single use: each refresh returns a new token and revokes the old one. Presenting a revoked, expired, or already-rotated token revokes **all** sessions for that user (stolen-token mitigation).
+- Password change/reset stamps `users.password_changed_at`; access tokens issued before that instant are rejected by the JWT filter, and all refresh sessions are revoked.
+
+## Rate limiting
+
+Public auth endpoints (`/auth/login`, `/auth/register`, `/auth/google`, `/auth/otp/send`, `/auth/password/forgot`, `/auth/password/reset`) are rate limited per IP + endpoint: default 10 requests per 60 seconds, returning `429 Too Many Requests` with a `Retry-After` header. Tune with `RATE_LIMIT_ENABLED`, `RATE_LIMIT_LIMIT`, `RATE_LIMIT_WINDOW_SECONDS`. The implementation is in-memory (single node); move to Redis when scaling beyond one instance.
+
 ## Environment
 
-See `.env.example` for `DB_*`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `OTP_PEPPER`, and `MAIL_*`.
+See `.env.example` for `DB_*`, `JWT_SECRET`, `REFRESH_TOKEN_TTL`, `RATE_LIMIT_*`, `GOOGLE_CLIENT_ID`, `OTP_PEPPER`, and `MAIL_*`.
