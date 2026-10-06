@@ -134,6 +134,28 @@ class CustomerControllerTest {
     }
 
     @Test
+    void searchShouldFilterByNameOrEmailAndExposeStablePageShape() throws Exception {
+        customerRepository.save(new Customer(orgA, "Wayne Enterprises", "bruce@wayne.com", null, null, null));
+        customerRepository.save(new Customer(orgA, "Stark Industries", "tony@stark.com", null, null, null));
+
+        mockMvc.perform(get("/api/v1/customers")
+                .param("q", "wayne")
+                .header("Authorization", "Bearer " + adminAToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content", hasSize(1)))
+            .andExpect(jsonPath("$.data.content[0].email").value("bruce@wayne.com"))
+            .andExpect(jsonPath("$.data.page.totalElements").value(1));
+
+        // Email match is also covered by the same search term
+        mockMvc.perform(get("/api/v1/customers")
+                .param("q", "stark.com")
+                .header("Authorization", "Bearer " + adminAToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content", hasSize(1)))
+            .andExpect(jsonPath("$.data.content[0].name").value("Stark Industries"));
+    }
+
+    @Test
     void unauthenticatedRequestShouldReturn401() throws Exception {
         mockMvc.perform(get("/api/v1/customers"))
             .andExpect(status().isUnauthorized());

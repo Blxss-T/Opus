@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -240,6 +241,45 @@ class EmployeeControllerTest {
                     "New", "Guy", "new@alpha.test", "Dev", "Eng", EmploymentStatus.ACTIVE, null, null
                 ))))
             .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void listShouldSupportSearchAndStatusFilters() throws Exception {
+        Employee active = new Employee();
+        active.setOrganization(orgA);
+        active.setFirstName("Grace");
+        active.setLastName("Hopper");
+        active.setEmail("grace@alpha.test");
+        active.setEmploymentStatus(EmploymentStatus.ACTIVE);
+        employeeRepository.save(active);
+
+        Employee onLeave = new Employee();
+        onLeave.setOrganization(orgA);
+        onLeave.setFirstName("Alan");
+        onLeave.setLastName("Turing");
+        onLeave.setEmail("alan@alpha.test");
+        onLeave.setEmploymentStatus(EmploymentStatus.ON_LEAVE);
+        employeeRepository.save(onLeave);
+
+        mockMvc.perform(get("/api/v1/employees")
+                .param("q", "grace")
+                .header("Authorization", "Bearer " + tokenAdminA))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content", hasSize(1)))
+            .andExpect(jsonPath("$.data.content[0].email").value("grace@alpha.test"));
+
+        mockMvc.perform(get("/api/v1/employees")
+                .param("status", "ON_LEAVE")
+                .header("Authorization", "Bearer " + tokenAdminA))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content", hasSize(1)))
+            .andExpect(jsonPath("$.data.content[0].firstName").value("Alan"));
+
+        mockMvc.perform(get("/api/v1/employees")
+                .param("status", "NOT_A_STATUS")
+                .header("Authorization", "Bearer " + tokenAdminA))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.error").value("ERR_400"));
     }
 
     @Test

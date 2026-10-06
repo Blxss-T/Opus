@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -165,6 +166,32 @@ class ProductControllerTest {
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.content[0].quantityDelta").value(25))
             .andExpect(jsonPath("$.data.content[0].movementType").value("INBOUND"));
+    }
+
+    @Test
+    void listShouldSupportSearchAndCategoryFilters() throws Exception {
+        productRepository.save(new Product(
+            orgA, "PRD-A1", "Wireless Mouse", null, "Electronics",
+            new BigDecimal("29.99"), new BigDecimal("12.50"), 100, 15
+        ));
+        productRepository.save(new Product(
+            orgA, "PRD-A2", "Office Chair", null, "Furniture",
+            new BigDecimal("199.00"), new BigDecimal("120.00"), 10, 2
+        ));
+
+        mockMvc.perform(get("/api/v1/products")
+                .param("q", "mouse")
+                .header("Authorization", "Bearer " + adminAToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content", hasSize(1)))
+            .andExpect(jsonPath("$.data.content[0].sku").value("PRD-A1"));
+
+        mockMvc.perform(get("/api/v1/products")
+                .param("category", "furniture")
+                .header("Authorization", "Bearer " + adminAToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content", hasSize(1)))
+            .andExpect(jsonPath("$.data.content[0].sku").value("PRD-A2"));
     }
 
     @Test

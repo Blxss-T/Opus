@@ -4,6 +4,7 @@ import com.opsflow.auth.security.UserPrincipal;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.common.exception.ErrorCode;
 import com.opsflow.common.exception.ResourceNotFoundException;
+import com.opsflow.common.jpa.FilterSpecs;
 import com.opsflow.customers.domain.Customer;
 import com.opsflow.customers.dto.CreateCustomerRequest;
 import com.opsflow.customers.dto.CustomerResponse;
@@ -13,6 +14,8 @@ import com.opsflow.organizations.domain.Organization;
 import com.opsflow.organizations.repository.OrganizationRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,9 +71,14 @@ public class CustomerService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CustomerResponse> listCustomers(UserPrincipal principal, Pageable pageable) {
-        return customerRepository.findByOrganizationIdAndActiveTrue(principal.getOrganizationId(), pageable)
-            .map(CustomerResponse::fromEntity);
+    public Page<CustomerResponse> listCustomers(UserPrincipal principal, String q, Pageable pageable) {
+        Specification<Customer> spec = FilterSpecs.and(
+            FilterSpecs.organizationIs(principal.getOrganizationId()),
+            FilterSpecs.equalsValue("active", true),
+            FilterSpecs.ilikeAny(q, "name", "email")
+        );
+        Pageable effective = FilterSpecs.withDefaultSort(pageable, Sort.Order.asc("name"));
+        return customerRepository.findAll(spec, effective).map(CustomerResponse::fromEntity);
     }
 
     @Transactional

@@ -19,6 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.util.List;
 import java.util.Optional;
@@ -127,10 +128,10 @@ class CustomerServiceTest {
         assertFalse(deleted.active());
 
         Pageable pageable = PageRequest.of(0, 20);
-        when(customerRepository.findByOrganizationIdAndActiveTrue(orgId, pageable))
+        when(customerRepository.findAll(any(Specification.class), any(Pageable.class)))
             .thenReturn(new PageImpl<>(List.of()));
 
-        Page<CustomerResponse> page = customerService.listCustomers(adminPrincipal, pageable);
+        Page<CustomerResponse> page = customerService.listCustomers(adminPrincipal, null, pageable);
         assertEquals(0, page.getTotalElements());
     }
 }

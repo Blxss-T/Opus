@@ -34,6 +34,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -167,6 +168,58 @@ class PurchaseOrderControllerTest {
         // 4. Verify product stock quantity in DB was increased from 10 to 30 (10 + 20)
         Product updatedProduct = productRepository.findById(productA.getId()).orElseThrow();
         assertEquals(30, updatedProduct.getStockQuantity());
+    }
+
+    @Test
+    void listShouldFilterByStatusAndRejectInvalidValues() throws Exception {
+        PurchaseOrderItemRequest item = new PurchaseOrderItemRequest(productA.getId(), 5, new BigDecimal("80.00"));
+        CreatePurchaseOrderRequest poRequest = new CreatePurchaseOrderRequest(
+            supplierA.getId(),
+            null,
+            null,
+            List.of(item)
+        );
+
+        MvcResult first = mockMvc.perform(post("/api/v1/purchase-orders")
+                .header("Authorization", "Bearer " + adminAToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(poRequest)))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        mockMvc.perform(post("/api/v1/purchase-orders")
+                .header("Authorization", "Bearer " + adminAToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(poRequest)))
+            .andExpect(status().isCreated());
+
+        String poId = objectMapper.readTree(first.getResponse().getContentAsString()).path("data").path("id").asText();
+        UpdatePurchaseOrderStatusRequest ordered = new UpdatePurchaseOrderStatusRequest(PurchaseOrderStatus.ORDERED);
+        mockMvc.perform(patch("/api/v1/purchase-orders/" + poId + "/status")
+                .header("Authorization", "Bearer " + adminAToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(ordered)))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/purchase-orders")
+                .param("status", "ORDERED")
+                .header("Authorization", "Bearer " + adminAToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content", hasSize(1)))
+            .andExpect(jsonPath("$.data.content[0].status").value("ORDERED"));
+
+        mockMvc.perform(get("/api/v1/purchase-orders")
+                .param("status", "DRAFT")
+                .header("Authorization", "Bearer " + adminAToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content", hasSize(1)))
+            .andExpect(jsonPath("$.data.content[0].status").value("DRAFT"));
+
+        mockMvc.perform(get("/api/v1/purchase-orders")
+                .param("status", "NOT_A_STATUS")
+                .header("Authorization", "Bearer " + adminAToken))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.error").value("ERR_400"));
     }
 
     @Test

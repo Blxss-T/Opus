@@ -2,6 +2,7 @@ package com.opsflow.inventory.controller;
 
 import com.opsflow.auth.security.UserPrincipal;
 import com.opsflow.common.response.ApiResponse;
+import com.opsflow.inventory.domain.MovementType;
 import com.opsflow.inventory.dto.AdjustStockRequest;
 import com.opsflow.inventory.dto.CreateProductRequest;
 import com.opsflow.inventory.dto.InventoryMovementResponse;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -52,12 +54,14 @@ public class ProductController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ORG_ADMIN', 'MANAGER', 'EMPLOYEE')")
-    @Operation(summary = "List Products", description = "Retrieves a paginated list of active products for the caller's organization.")
+    @Operation(summary = "List Products", description = "Retrieves a paginated list of active products for the caller's organization. Supports `q` (case-insensitive match on name or SKU), `category` (case-insensitive exact match), `page`, `size`, and `sort`.")
     public ResponseEntity<ApiResponse<Page<ProductResponse>>> listProducts(
         @AuthenticationPrincipal UserPrincipal principal,
+        @RequestParam(required = false) String q,
+        @RequestParam(required = false) String category,
         Pageable pageable
     ) {
-        Page<ProductResponse> response = productService.listProducts(principal, pageable);
+        Page<ProductResponse> response = productService.listProducts(principal, q, category, pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -109,13 +113,14 @@ public class ProductController {
 
     @GetMapping("/{id}/movements")
     @PreAuthorize("hasAnyRole('ORG_ADMIN', 'MANAGER', 'EMPLOYEE')")
-    @Operation(summary = "Get Stock Movements History", description = "Retrieves the historical audit trail of stock movements for a product.")
+    @Operation(summary = "Get Stock Movements History", description = "Retrieves the historical audit trail of stock movements for a product. Supports `type` (INBOUND, OUTBOUND, ADJUSTMENT, RETURN, DAMAGE), `page`, `size`, and `sort`.")
     public ResponseEntity<ApiResponse<Page<InventoryMovementResponse>>> getMovements(
         @AuthenticationPrincipal UserPrincipal principal,
         @PathVariable UUID id,
+        @RequestParam(required = false) MovementType type,
         Pageable pageable
     ) {
-        Page<InventoryMovementResponse> response = productService.getProductMovements(principal, id, pageable);
+        Page<InventoryMovementResponse> response = productService.getProductMovements(principal, id, type, pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

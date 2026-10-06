@@ -20,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -107,6 +108,26 @@ class SupplierControllerTest {
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.name").value("Apex Logistics"))
             .andExpect(jsonPath("$.data.contactPerson").value("John Doe"));
+    }
+
+    @Test
+    void searchShouldFilterByNameEmailOrContactPerson() throws Exception {
+        supplierRepository.save(new Supplier(orgA, "Apex Logistics", "John Doe", "john@apex.com", null, null, null));
+        supplierRepository.save(new Supplier(orgA, "Globex Freight", "Jane Roe", "jane@globex.com", null, null, null));
+
+        mockMvc.perform(get("/api/v1/suppliers")
+                .param("q", "jane")
+                .header("Authorization", "Bearer " + adminAToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content", hasSize(1)))
+            .andExpect(jsonPath("$.data.content[0].name").value("Globex Freight"));
+
+        mockMvc.perform(get("/api/v1/suppliers")
+                .param("q", "apex")
+                .header("Authorization", "Bearer " + adminAToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content", hasSize(1)))
+            .andExpect(jsonPath("$.data.content[0].email").value("john@apex.com"));
     }
 
     @Test

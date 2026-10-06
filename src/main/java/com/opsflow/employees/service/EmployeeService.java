@@ -4,6 +4,7 @@ import com.opsflow.auth.security.UserPrincipal;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.common.exception.ErrorCode;
 import com.opsflow.common.exception.ResourceNotFoundException;
+import com.opsflow.common.jpa.FilterSpecs;
 import com.opsflow.employees.domain.Employee;
 import com.opsflow.employees.domain.EmploymentStatus;
 import com.opsflow.employees.dto.CreateEmployeeRequest;
@@ -17,6 +18,8 @@ import com.opsflow.users.domain.User;
 import com.opsflow.users.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,9 +44,14 @@ public class EmployeeService {
     }
 
     @Transactional(readOnly = true)
-    public Page<EmployeeResponse> list(UserPrincipal principal, Pageable pageable) {
-        return employeeRepository.findByOrganizationId(principal.getOrganizationId(), pageable)
-            .map(EmployeeResponse::fromEntity);
+    public Page<EmployeeResponse> list(UserPrincipal principal, String q, EmploymentStatus status, Pageable pageable) {
+        Specification<Employee> spec = FilterSpecs.and(
+            FilterSpecs.organizationIs(principal.getOrganizationId()),
+            FilterSpecs.ilikeAny(q, "firstName", "lastName", "email"),
+            FilterSpecs.equalsValue("employmentStatus", status)
+        );
+        Pageable effective = FilterSpecs.withDefaultSort(pageable, Sort.Order.asc("firstName"), Sort.Order.asc("lastName"));
+        return employeeRepository.findAll(spec, effective).map(EmployeeResponse::fromEntity);
     }
 
     @Transactional(readOnly = true)

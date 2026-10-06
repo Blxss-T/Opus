@@ -4,6 +4,7 @@ import com.opsflow.auth.security.UserPrincipal;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.common.exception.ErrorCode;
 import com.opsflow.common.exception.ResourceNotFoundException;
+import com.opsflow.common.jpa.FilterSpecs;
 import com.opsflow.customers.domain.Customer;
 import com.opsflow.customers.repository.CustomerRepository;
 import com.opsflow.inventory.domain.MovementType;
@@ -23,6 +24,8 @@ import com.opsflow.sales.dto.UpdateSalesOrderStatusRequest;
 import com.opsflow.sales.repository.SalesOrderRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -144,9 +147,13 @@ public class SalesOrderService {
     }
 
     @Transactional(readOnly = true)
-    public Page<SalesOrderResponse> listSalesOrders(UserPrincipal principal, Pageable pageable) {
-        return salesOrderRepository.findByOrganizationIdOrderByCreatedAtDesc(principal.getOrganizationId(), pageable)
-            .map(SalesOrderResponse::fromEntity);
+    public Page<SalesOrderResponse> listSalesOrders(UserPrincipal principal, SalesOrderStatus status, Pageable pageable) {
+        Specification<SalesOrder> spec = FilterSpecs.and(
+            FilterSpecs.organizationIs(principal.getOrganizationId()),
+            FilterSpecs.equalsValue("status", status)
+        );
+        Pageable effective = FilterSpecs.withDefaultSort(pageable, Sort.Order.desc("createdAt"));
+        return salesOrderRepository.findAll(spec, effective).map(SalesOrderResponse::fromEntity);
     }
 
     private void validateStateTransition(SalesOrderStatus current, SalesOrderStatus next) {

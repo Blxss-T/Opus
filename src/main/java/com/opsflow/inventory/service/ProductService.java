@@ -4,6 +4,7 @@ import com.opsflow.auth.security.UserPrincipal;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.common.exception.ErrorCode;
 import com.opsflow.common.exception.ResourceNotFoundException;
+import com.opsflow.common.jpa.FilterSpecs;
 import com.opsflow.inventory.domain.InventoryMovement;
 import com.opsflow.inventory.domain.MovementType;
 import com.opsflow.inventory.domain.Product;
@@ -18,6 +19,8 @@ import com.opsflow.organizations.domain.Organization;
 import com.opsflow.organizations.repository.OrganizationRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -94,9 +97,15 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ProductResponse> listProducts(UserPrincipal principal, Pageable pageable) {
-        return productRepository.findByOrganizationIdAndActiveTrue(principal.getOrganizationId(), pageable)
-            .map(ProductResponse::fromEntity);
+    public Page<ProductResponse> listProducts(UserPrincipal principal, String q, String category, Pageable pageable) {
+        Specification<Product> spec = FilterSpecs.and(
+            FilterSpecs.organizationIs(principal.getOrganizationId()),
+            FilterSpecs.equalsValue("active", true),
+            FilterSpecs.ilikeAny(q, "name", "sku"),
+            FilterSpecs.equalsIgnoreCase("category", category)
+        );
+        Pageable effective = FilterSpecs.withDefaultSort(pageable, Sort.Order.asc("name"));
+        return productRepository.findAll(spec, effective).map(ProductResponse::fromEntity);
     }
 
     @Transactional
@@ -161,15 +170,23 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
-    public Page<InventoryMovementResponse> getProductMovements(UserPrincipal principal, UUID productId, Pageable pageable) {
+    public Page<InventoryMovementResponse> getProductMovements(
+        UserPrincipal principal,
+        UUID productId,
+        MovementType type,
+        Pageable pageable
+    ) {
         // Ensure product exists and belongs to the caller's organization
         findProductForTenant(principal.getOrganizationId(), productId);
 
-        return inventoryMovementRepository.findByOrganizationIdAndProductIdOrderByCreatedAtDesc(
-            principal.getOrganizationId(),
-            productId,
-            pageable
-        ).map(InventoryMovementResponse::fromEntity);
+        Specification<InventoryMovement> spec = FilterSpecs.and(
+            FilterSpecs.organizationIs(principal.getOrganizationId()),
+            FilterSpecs.equalsValue("movementType", type),
+            (root, query, cb) -> cb.equal(root.get("product").get("id"), productId)
+        );
+        Pageable effective = FilterSpecs.withDefaultSort(pageable, Sort.Order.desc("createdAt"));
+        return inventoryMovementRepository.findAll(spec, effective)
+            .map(InventoryMovementResponse::fromEntity);
     }
 
     private Product findProductForTenant(UUID organizationId, UUID productId) {

@@ -22,6 +22,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -272,10 +274,10 @@ class EmployeeServiceTest {
         e1.setLastName("Test");
 
         PageRequest pageable = PageRequest.of(0, 10);
-        when(employeeRepository.findByOrganizationId(orgId1, pageable))
+        when(employeeRepository.findAll(any(Specification.class), any(Pageable.class)))
             .thenReturn(new PageImpl<>(List.of(e1), pageable, 1));
 
-        Page<EmployeeResponse> page = employeeService.list(adminPrincipal, pageable);
+        Page<EmployeeResponse> page = employeeService.list(adminPrincipal, null, null, pageable);
 
         assertEquals(1, page.getTotalElements());
         assertEquals("e1@org1.test", page.getContent().get(0).email());

@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -50,12 +51,13 @@ public class SupplierController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ORG_ADMIN', 'MANAGER', 'EMPLOYEE')")
-    @Operation(summary = "List Suppliers", description = "Retrieves a paginated list of active suppliers for the caller's organization.")
+    @Operation(summary = "List Suppliers", description = "Retrieves a paginated list of active suppliers for the caller's organization. Supports `q` (case-insensitive match on name, email, or contact person), `page`, `size`, and `sort`.")
     public ResponseEntity<ApiResponse<Page<SupplierResponse>>> listSuppliers(
         @AuthenticationPrincipal UserPrincipal principal,
+        @RequestParam(required = false) String q,
         Pageable pageable
     ) {
-        Page<SupplierResponse> response = supplierService.listSuppliers(principal, pageable);
+        Page<SupplierResponse> response = supplierService.listSuppliers(principal, q, pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

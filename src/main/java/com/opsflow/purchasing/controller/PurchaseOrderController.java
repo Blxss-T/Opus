@@ -2,6 +2,7 @@ package com.opsflow.purchasing.controller;
 
 import com.opsflow.auth.security.UserPrincipal;
 import com.opsflow.common.response.ApiResponse;
+import com.opsflow.purchasing.domain.PurchaseOrderStatus;
 import com.opsflow.purchasing.dto.CreatePurchaseOrderRequest;
 import com.opsflow.purchasing.dto.PurchaseOrderResponse;
 import com.opsflow.purchasing.dto.UpdatePurchaseOrderStatusRequest;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -49,12 +51,13 @@ public class PurchaseOrderController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ORG_ADMIN', 'MANAGER', 'EMPLOYEE')")
-    @Operation(summary = "List Purchase Orders", description = "Retrieves a paginated list of purchase orders for the caller's organization.")
+    @Operation(summary = "List Purchase Orders", description = "Retrieves a paginated list of purchase orders for the caller's organization. Supports `status` (DRAFT, ORDERED, RECEIVED, CANCELLED), `page`, `size`, and `sort`.")
     public ResponseEntity<ApiResponse<Page<PurchaseOrderResponse>>> listPurchaseOrders(
         @AuthenticationPrincipal UserPrincipal principal,
+        @RequestParam(required = false) PurchaseOrderStatus status,
         Pageable pageable
     ) {
-        Page<PurchaseOrderResponse> response = purchaseOrderService.listPurchaseOrders(principal, pageable);
+        Page<PurchaseOrderResponse> response = purchaseOrderService.listPurchaseOrders(principal, status, pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

@@ -34,6 +34,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -192,6 +193,58 @@ class SalesOrderControllerTest {
         mockMvc.perform(get("/api/v1/sales-orders/" + soId)
                 .header("Authorization", "Bearer " + adminBToken))
             .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void listShouldFilterByStatusAndRejectInvalidValues() throws Exception {
+        SalesOrderItemRequest item = new SalesOrderItemRequest(productA.getId(), 5, new BigDecimal("150.00"));
+        CreateSalesOrderRequest soRequest = new CreateSalesOrderRequest(
+            customerA.getId(),
+            null,
+            null,
+            List.of(item)
+        );
+
+        MvcResult first = mockMvc.perform(post("/api/v1/sales-orders")
+                .header("Authorization", "Bearer " + adminAToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(soRequest)))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        mockMvc.perform(post("/api/v1/sales-orders")
+                .header("Authorization", "Bearer " + adminAToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(soRequest)))
+            .andExpect(status().isCreated());
+
+        String soId = objectMapper.readTree(first.getResponse().getContentAsString()).path("data").path("id").asText();
+        UpdateSalesOrderStatusRequest confirmed = new UpdateSalesOrderStatusRequest(SalesOrderStatus.CONFIRMED);
+        mockMvc.perform(patch("/api/v1/sales-orders/" + soId + "/status")
+                .header("Authorization", "Bearer " + adminAToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(confirmed)))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/sales-orders")
+                .param("status", "CONFIRMED")
+                .header("Authorization", "Bearer " + adminAToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content", hasSize(1)))
+            .andExpect(jsonPath("$.data.content[0].status").value("CONFIRMED"));
+
+        mockMvc.perform(get("/api/v1/sales-orders")
+                .param("status", "DRAFT")
+                .header("Authorization", "Bearer " + adminAToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.content", hasSize(1)))
+            .andExpect(jsonPath("$.data.content[0].status").value("DRAFT"));
+
+        mockMvc.perform(get("/api/v1/sales-orders")
+                .param("status", "NOT_A_STATUS")
+                .header("Authorization", "Bearer " + adminAToken))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.error").value("ERR_400"));
     }
 
     @Test

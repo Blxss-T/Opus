@@ -81,6 +81,28 @@ PostgreSQL Testcontainers tests use the `it` profile and require Docker.
 
 Google mock tokens (`mock-google-token:email:First:Last`) work only when `security.google.allow-mock-tokens=true` (dev/test). Production must set `GOOGLE_CLIENT_ID` and a unique `JWT_SECRET`.
 
+## Pagination, filtering & sorting
+
+All list endpoints share a consistent contract:
+
+- `page` (0-based, default 0) and `size` (default 20, max 100)
+- `sort` — e.g. `?sort=name,asc` or `?sort=createdAt,desc`
+- Optional filters per endpoint (see the module tables below); text search parameters are case-insensitive "contains" matches
+- Every page response is serialized in a stable shape: `data.content[]` plus `data.page` (`size`, `number`, `totalElements`, `totalPages`)
+- Invalid filter values (e.g. `?status=BOGUS`) return `400 ERR_400`
+
+| Endpoint | Filters |
+| --- | --- |
+| GET `/customers` | `q` (name, email) |
+| GET `/suppliers` | `q` (name, email, contact person) |
+| GET `/products` | `q` (name, SKU), `category` (case-insensitive exact) |
+| GET `/products/{id}/movements` | `type` (INBOUND, OUTBOUND, ADJUSTMENT, RETURN, DAMAGE) |
+| GET `/employees` | `q` (first name, last name, email), `status` (ACTIVE, ON_LEAVE, TERMINATED) |
+| GET `/purchase-orders` | `status` (DRAFT, ORDERED, RECEIVED, CANCELLED) |
+| GET `/sales-orders` | `status` (DRAFT, CONFIRMED, FULFILLED, CANCELLED) |
+
+Default sorts: customers/suppliers/products by `name` asc, employees by name, orders and movements by `createdAt` desc.
+
 ## Employee APIs
 
 Organization is taken from the JWT, never from the client body.
@@ -96,7 +118,7 @@ Organization is taken from the JWT, never from the client body.
 
 ## Customer APIs
 
-Organization is taken from the JWT, never from the client body. Email is unique per organization (normalized to lowercase). Delete is a soft delete (`active = false`).
+Organization is taken from the JWT, never from the client body. Email is unique per organization (normalized to lowercase). Delete is a soft delete (`active = false`). List supports `q` search (name/email).
 
 | Method | Path | Roles |
 | --- | --- | --- |
@@ -108,6 +130,8 @@ Organization is taken from the JWT, never from the client body. Email is unique 
 
 ## Supplier APIs
 
+List supports `q` search (name/email/contact person).
+
 | Method | Path | Roles |
 | --- | --- | --- |
 | GET | `/suppliers` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
@@ -117,6 +141,8 @@ Organization is taken from the JWT, never from the client body. Email is unique 
 | DELETE | `/suppliers/{id}` | `ORG_ADMIN`, `MANAGER` |
 
 ## Product APIs
+
+List supports `q` search (name/SKU) and `category` filter. Movement history supports `type` filter.
 
 | Method | Path | Roles |
 | --- | --- | --- |
@@ -130,7 +156,7 @@ Organization is taken from the JWT, never from the client body. Email is unique 
 
 ## Purchase Order APIs
 
-Organization is taken from the JWT, never from the client body. PO numbers are generated per organization (`PO-YYYY-####`). Receiving a PO automatically creates `INBOUND` stock movements.
+Organization is taken from the JWT, never from the client body. PO numbers are generated per organization (`PO-YYYY-####`). Receiving a PO automatically creates `INBOUND` stock movements. List supports `status` filter.
 
 | Method | Path | Roles |
 | --- | --- | --- |
@@ -141,7 +167,7 @@ Organization is taken from the JWT, never from the client body. PO numbers are g
 
 ## Sales Order APIs
 
-Organization is taken from the JWT, never from the client body. SO numbers are generated per organization (`SO-YYYY-####`). Fulfilling an SO automatically creates `OUTBOUND` stock movements and fails atomically if stock is insufficient.
+Organization is taken from the JWT, never from the client body. SO numbers are generated per organization (`SO-YYYY-####`). Fulfilling an SO automatically creates `OUTBOUND` stock movements and fails atomically if stock is insufficient. List supports `status` filter.
 
 | Method | Path | Roles |
 | --- | --- | --- |

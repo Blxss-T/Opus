@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -50,12 +51,13 @@ public class CustomerController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ORG_ADMIN', 'MANAGER', 'EMPLOYEE')")
-    @Operation(summary = "List Customers", description = "Retrieves a paginated list of active customers for the caller's organization.")
+    @Operation(summary = "List Customers", description = "Retrieves a paginated list of active customers for the caller's organization. Supports `q` (case-insensitive match on name or email), `page`, `size`, and `sort`.")
     public ResponseEntity<ApiResponse<Page<CustomerResponse>>> listCustomers(
         @AuthenticationPrincipal UserPrincipal principal,
+        @RequestParam(required = false) String q,
         Pageable pageable
     ) {
-        Page<CustomerResponse> response = customerService.listCustomers(principal, pageable);
+        Page<CustomerResponse> response = customerService.listCustomers(principal, q, pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

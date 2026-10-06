@@ -4,6 +4,7 @@ import com.opsflow.auth.security.UserPrincipal;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.common.exception.ErrorCode;
 import com.opsflow.common.exception.ResourceNotFoundException;
+import com.opsflow.common.jpa.FilterSpecs;
 import com.opsflow.organizations.domain.Organization;
 import com.opsflow.organizations.repository.OrganizationRepository;
 import com.opsflow.suppliers.domain.Supplier;
@@ -13,6 +14,8 @@ import com.opsflow.suppliers.dto.UpdateSupplierRequest;
 import com.opsflow.suppliers.repository.SupplierRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,9 +71,14 @@ public class SupplierService {
     }
 
     @Transactional(readOnly = true)
-    public Page<SupplierResponse> listSuppliers(UserPrincipal principal, Pageable pageable) {
-        return supplierRepository.findByOrganizationIdAndActiveTrue(principal.getOrganizationId(), pageable)
-            .map(SupplierResponse::fromEntity);
+    public Page<SupplierResponse> listSuppliers(UserPrincipal principal, String q, Pageable pageable) {
+        Specification<Supplier> spec = FilterSpecs.and(
+            FilterSpecs.organizationIs(principal.getOrganizationId()),
+            FilterSpecs.equalsValue("active", true),
+            FilterSpecs.ilikeAny(q, "name", "email", "contactPerson")
+        );
+        Pageable effective = FilterSpecs.withDefaultSort(pageable, Sort.Order.asc("name"));
+        return supplierRepository.findAll(spec, effective).map(SupplierResponse::fromEntity);
     }
 
     @Transactional

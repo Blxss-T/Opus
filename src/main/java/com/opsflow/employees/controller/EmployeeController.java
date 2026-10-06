@@ -2,6 +2,7 @@ package com.opsflow.employees.controller;
 
 import com.opsflow.auth.security.UserPrincipal;
 import com.opsflow.common.response.ApiResponse;
+import com.opsflow.employees.domain.EmploymentStatus;
 import com.opsflow.employees.dto.CreateEmployeeRequest;
 import com.opsflow.employees.dto.EmployeeResponse;
 import com.opsflow.employees.dto.UpdateEmployeeRequest;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -39,12 +41,14 @@ public class EmployeeController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ORG_ADMIN','MANAGER')")
-    @Operation(summary = "List employees", description = "Returns a paginated list of employees in the caller's organization.")
+    @Operation(summary = "List employees", description = "Returns a paginated list of employees in the caller's organization. Supports `q` (case-insensitive match on first name, last name, or email), `status` (ACTIVE, ON_LEAVE, TERMINATED), `page`, `size`, and `sort`.")
     public ResponseEntity<ApiResponse<Page<EmployeeResponse>>> list(
         @AuthenticationPrincipal UserPrincipal principal,
+        @RequestParam(required = false) String q,
+        @RequestParam(required = false) EmploymentStatus status,
         Pageable pageable
     ) {
-        return ResponseEntity.ok(ApiResponse.success(employeeService.list(principal, pageable)));
+        return ResponseEntity.ok(ApiResponse.success(employeeService.list(principal, q, status, pageable)));
     }
 
     @GetMapping("/me")

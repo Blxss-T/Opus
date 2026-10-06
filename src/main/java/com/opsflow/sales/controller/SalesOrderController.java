@@ -2,6 +2,7 @@ package com.opsflow.sales.controller;
 
 import com.opsflow.auth.security.UserPrincipal;
 import com.opsflow.common.response.ApiResponse;
+import com.opsflow.sales.domain.SalesOrderStatus;
 import com.opsflow.sales.dto.CreateSalesOrderRequest;
 import com.opsflow.sales.dto.SalesOrderResponse;
 import com.opsflow.sales.dto.UpdateSalesOrderStatusRequest;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -49,12 +51,13 @@ public class SalesOrderController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ORG_ADMIN', 'MANAGER', 'EMPLOYEE')")
-    @Operation(summary = "List Sales Orders", description = "Retrieves a paginated list of sales orders for the caller's organization.")
+    @Operation(summary = "List Sales Orders", description = "Retrieves a paginated list of sales orders for the caller's organization. Supports `status` (DRAFT, CONFIRMED, FULFILLED, CANCELLED), `page`, `size`, and `sort`.")
     public ResponseEntity<ApiResponse<Page<SalesOrderResponse>>> listSalesOrders(
         @AuthenticationPrincipal UserPrincipal principal,
+        @RequestParam(required = false) SalesOrderStatus status,
         Pageable pageable
     ) {
-        Page<SalesOrderResponse> response = salesOrderService.listSalesOrders(principal, pageable);
+        Page<SalesOrderResponse> response = salesOrderService.listSalesOrders(principal, status, pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
