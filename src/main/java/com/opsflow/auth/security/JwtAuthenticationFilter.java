@@ -1,6 +1,5 @@
 package com.opsflow.auth.security;
 
-import com.opsflow.users.domain.Role;
 import com.opsflow.users.domain.User;
 import com.opsflow.users.repository.UserRepository;
 import jakarta.servlet.FilterChain;
@@ -42,11 +41,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String email = jwtService.getEmailFromToken(jwt);
             UUID userId = jwtService.getUserIdFromToken(jwt);
             UUID organizationId = jwtService.getOrganizationIdFromToken(jwt);
-            Role role = jwtService.getRoleFromToken(jwt);
 
             // Re-check the account on every request: rejects tokens for
             // deactivated users and tokens issued before the last password
-            // change/reset (passwordChangedAt invalidation).
+            // change/reset (passwordChangedAt invalidation). The role is read
+            // from the account so a role change applies immediately.
             User user = userRepository.findById(userId).orElse(null);
             if (user == null || !user.isActive()) {
                 filterChain.doFilter(request, response);
@@ -59,7 +58,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
-            UserPrincipal principal = new UserPrincipal(userId, organizationId, email, "", role, true);
+            UserPrincipal principal = new UserPrincipal(userId, organizationId, email, "", user.getRole(), true);
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                 principal,
                 null,

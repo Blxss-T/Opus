@@ -10,6 +10,7 @@ Increments 1-4:
 - Organizations and users with BCrypt passwords
 - Auth: register, login, current user, email OTP (verification proof), Google ID token sign-in
 - Pilot rule: at most one `ORG_ADMIN` per organization (Java check + unique partial index)
+- Users: `ORG_ADMIN` creates and manages `MANAGER` / `EMPLOYEE` accounts in their organization
 - Employees: org-scoped CRUD with role rules and tenant isolation
 - Customers: org-scoped CRUD against Flyway V9 (`uk_customers_org_email`), soft delete
 - Suppliers & Purchase Orders: vendor CRUD, PO lifecycle `DRAFT -> ORDERED -> RECEIVED/CANCELLED`, automatic inventory replenishment on receiving (Flyway V8)
@@ -98,10 +99,24 @@ All list endpoints share a consistent contract:
 | GET `/products` | `q` (name, SKU), `category` (case-insensitive exact) |
 | GET `/products/{id}/movements` | `type` (INBOUND, OUTBOUND, ADJUSTMENT, RETURN, DAMAGE) |
 | GET `/employees` | `q` (first name, last name, email), `status` (ACTIVE, ON_LEAVE, TERMINATED) |
+| GET `/users` | `q` (first name, last name, email), `role` (ORG_ADMIN, MANAGER, EMPLOYEE), `active` (true, false) |
 | GET `/purchase-orders` | `status` (DRAFT, ORDERED, RECEIVED, CANCELLED) |
 | GET `/sales-orders` | `status` (DRAFT, CONFIRMED, FULFILLED, CANCELLED) |
 
 Default sorts: customers/suppliers/products by `name` asc, employees by name, orders and movements by `createdAt` desc.
+
+## User APIs
+
+Organization is taken from the JWT, never from the client body. The `ORG_ADMIN` creates accounts with an initial password; the new user signs in with `/auth/login` and can change it via `/auth/password/change`. Only `MANAGER` and `EMPLOYEE` can be assigned, and the `ORG_ADMIN` account cannot be demoted or deactivated. Emails are unique across all organizations. Role changes and deactivation take effect immediately, including for access tokens already issued.
+
+| Method | Path | Roles |
+| --- | --- | --- |
+| POST | `/users` | `ORG_ADMIN` |
+| GET | `/users` | `ORG_ADMIN`, `MANAGER` |
+| GET | `/users/{id}` | `ORG_ADMIN`, `MANAGER` |
+| PUT | `/users/{id}` | `ORG_ADMIN` (first name, last name, role) |
+| DELETE | `/users/{id}` | `ORG_ADMIN` (deactivates and revokes all sessions) |
+| POST | `/users/{id}/activate` | `ORG_ADMIN` |
 
 ## Employee APIs
 
