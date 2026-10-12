@@ -216,6 +216,10 @@ All metrics are scoped to the caller's organization. Revenue counts `FULFILLED` 
 
 Public auth endpoints (`/auth/login`, `/auth/register`, `/auth/google`, `/auth/otp/send`, `/auth/password/forgot`, `/auth/password/reset`) are rate limited per IP + endpoint: default 10 requests per 60 seconds, returning `429 Too Many Requests` with a `Retry-After` header. Tune with `RATE_LIMIT_ENABLED`, `RATE_LIMIT_LIMIT`, `RATE_LIMIT_WINDOW_SECONDS`. The implementation is in-memory (single node); move to Redis when scaling beyond one instance.
 
+## CORS
+
+Browser frontends on another origin must be listed in `CORS_ALLOWED_ORIGINS` (comma-separated, applies to `/api/**`). The dev profile defaults to `http://localhost:3000` and `http://localhost:5173`; other profiles default to empty, which blocks all cross-origin requests. Authentication uses the `Authorization: Bearer` header, so cookies/credentials are not enabled.
+
 ## Environment
 
-See `.env.example` for `DB_*`, `JWT_SECRET`, `REFRESH_TOKEN_TTL`, `RATE_LIMIT_*`, `GOOGLE_CLIENT_ID`, `OTP_PEPPER`, and `MAIL_*`.
+See `.env.example` for `DB_*`, `JWT_SECRET`, `REFRESH_TOKEN_TTL`, `RATE_LIMIT_*`, `CORS_ALLOWED_ORIGINS`, `GOOGLE_CLIENT_ID`, `OTP_PEPPER`, and `MAIL_*`.
