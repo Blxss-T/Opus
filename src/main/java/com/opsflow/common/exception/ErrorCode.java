@@ -9,6 +9,7 @@ public enum ErrorCode {
     RESOURCE_NOT_FOUND("ERR_404", "Requested resource was not found", HttpStatus.NOT_FOUND),
     UNAUTHORIZED("ERR_401", "Authentication failure or missing credentials", HttpStatus.UNAUTHORIZED),
     FORBIDDEN("ERR_403", "Access denied for requested operation", HttpStatus.FORBIDDEN),
+    CONFLICT("ERR_409", "The resource was modified by another request", HttpStatus.CONFLICT),
     BUSINESS_RULE_VIOLATION("ERR_422", "Business rule violation occurred", HttpStatus.UNPROCESSABLE_ENTITY);
 
     private final String code;
