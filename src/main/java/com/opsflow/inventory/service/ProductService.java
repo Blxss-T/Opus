@@ -134,7 +134,22 @@ public class ProductService {
     @Transactional
     public ProductResponse adjustStock(UserPrincipal principal, UUID productId, AdjustStockRequest request) {
         Product product = findProductForTenant(principal.getOrganizationId(), productId);
+        return applyStockChange(principal, product, request);
+    }
 
+    /**
+     * Stock movement driven by a purchase or sales order. Unlike manual
+     * adjustments this also applies to archived (soft-deleted) products, so
+     * an order placed before the product was archived can still be completed.
+     */
+    @Transactional
+    public ProductResponse adjustStockForOrder(UserPrincipal principal, UUID productId, AdjustStockRequest request) {
+        Product product = productRepository.findByIdAndOrganizationId(productId, principal.getOrganizationId())
+            .orElseThrow(() -> new ResourceNotFoundException("Product", "id", productId));
+        return applyStockChange(principal, product, request);
+    }
+
+    private ProductResponse applyStockChange(UserPrincipal principal, Product product, AdjustStockRequest request) {
         int currentStock = product.getStockQuantity();
         int delta = request.quantityDelta();
         int newStock = currentStock + delta;

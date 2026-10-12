@@ -132,7 +132,7 @@ public class SalesOrderService {
                     MovementType.OUTBOUND,
                     String.format("SO %s fulfilled for customer %s", so.getSoNumber(), so.getCustomer().getName())
                 );
-                productService.adjustStock(principal, item.getProduct().getId(), adjustStockRequest);
+                productService.adjustStockForOrder(principal, item.getProduct().getId(), adjustStockRequest);
             }
         }
 

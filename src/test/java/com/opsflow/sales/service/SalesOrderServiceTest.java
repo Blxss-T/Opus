@@ -156,7 +156,7 @@ class SalesOrderServiceTest {
         assertEquals(SalesOrderStatus.FULFILLED, response.status());
 
         // Verify that stock adjustment was triggered for the product with a negative delta (OUTBOUND)
-        verify(productService).adjustStock(
+        verify(productService).adjustStockForOrder(
             eq(adminPrincipal),
             eq(productId),
             argThat(adj -> adj.quantityDelta() == -30 && adj.movementType() == MovementType.OUTBOUND)
@@ -185,7 +185,7 @@ class SalesOrderServiceTest {
         UpdateSalesOrderStatusRequest statusRequest = new UpdateSalesOrderStatusRequest(SalesOrderStatus.FULFILLED);
 
         assertThrows(BusinessException.class, () -> salesOrderService.updateStatus(adminPrincipal, soId, statusRequest));
-        verify(productService, never()).adjustStock(any(), any(), any());
+        verify(productService, never()).adjustStockForOrder(any(), any(), any());
     }
 
     @Test
@@ -209,6 +209,6 @@ class SalesOrderServiceTest {
         UpdateSalesOrderStatusRequest statusRequest = new UpdateSalesOrderStatusRequest(SalesOrderStatus.CONFIRMED);
 
         assertThrows(BusinessException.class, () -> salesOrderService.updateStatus(adminPrincipal, soId, statusRequest));
-        verify(productService, never()).adjustStock(any(), any(), any());
+        verify(productService, never()).adjustStockForOrder(any(), any(), any());
     }
 }

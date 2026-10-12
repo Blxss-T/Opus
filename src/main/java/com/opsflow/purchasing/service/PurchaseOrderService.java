@@ -132,7 +132,7 @@ public class PurchaseOrderService {
                     MovementType.INBOUND,
                     String.format("PO %s received from supplier %s", po.getPoNumber(), po.getSupplier().getName())
                 );
-                productService.adjustStock(principal, item.getProduct().getId(), adjustStockRequest);
+                productService.adjustStockForOrder(principal, item.getProduct().getId(), adjustStockRequest);
             }
         }
 

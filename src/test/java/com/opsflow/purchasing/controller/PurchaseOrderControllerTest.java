@@ -36,6 +36,7 @@ import java.util.UUID;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -244,6 +245,53 @@ class PurchaseOrderControllerTest {
         // User from Org B attempts to access Org A's PO
         mockMvc.perform(get("/api/v1/purchase-orders/" + poId)
                 .header("Authorization", "Bearer " + adminBToken))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void orderedPOShouldStillBeReceivableAfterProductIsArchived() throws Exception {
+        PurchaseOrderItemRequest item = new PurchaseOrderItemRequest(productA.getId(), 20, new BigDecimal("80.00"));
+        CreatePurchaseOrderRequest poRequest = new CreatePurchaseOrderRequest(
+            supplierA.getId(),
+            LocalDate.now().plusDays(5),
+            "Ordered before archiving",
+            List.of(item)
+        );
+
+        MvcResult createResult = mockMvc.perform(post("/api/v1/purchase-orders")
+                .header("Authorization", "Bearer " + adminAToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(poRequest)))
+            .andExpect(status().isCreated())
+            .andReturn();
+        String poId = objectMapper.readTree(createResult.getResponse().getContentAsString()).path("data").path("id").asText();
+
+        mockMvc.perform(patch("/api/v1/purchase-orders/" + poId + "/status")
+                .header("Authorization", "Bearer " + adminAToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new UpdatePurchaseOrderStatusRequest(PurchaseOrderStatus.ORDERED))))
+            .andExpect(status().isOk());
+
+        int stockBefore = productRepository.findById(productA.getId()).orElseThrow().getStockQuantity();
+
+        mockMvc.perform(delete("/api/v1/products/" + productA.getId())
+                .header("Authorization", "Bearer " + adminAToken))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/v1/purchase-orders/" + poId + "/status")
+                .header("Authorization", "Bearer " + adminAToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new UpdatePurchaseOrderStatusRequest(PurchaseOrderStatus.RECEIVED))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("RECEIVED"));
+
+        assertEquals(stockBefore + 20, productRepository.findById(productA.getId()).orElseThrow().getStockQuantity());
+
+        // Manual adjustments on an archived product stay blocked
+        mockMvc.perform(post("/api/v1/products/" + productA.getId() + "/adjust-stock")
+                .header("Authorization", "Bearer " + adminAToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"quantityDelta\":1,\"movementType\":\"ADJUSTMENT\",\"reason\":\"count\"}"))
             .andExpect(status().isNotFound());
     }
 }

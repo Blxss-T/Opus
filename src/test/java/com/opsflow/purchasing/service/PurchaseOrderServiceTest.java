@@ -156,7 +156,7 @@ class PurchaseOrderServiceTest {
         assertEquals(PurchaseOrderStatus.RECEIVED, response.status());
 
         // Verify that stock adjustment was triggered for the product
-        verify(productService).adjustStock(
+        verify(productService).adjustStockForOrder(
             eq(adminPrincipal),
             eq(productId),
             argThat(adj -> adj.quantityDelta() == 50 && adj.movementType() == MovementType.INBOUND)
@@ -185,6 +185,6 @@ class PurchaseOrderServiceTest {
         UpdatePurchaseOrderStatusRequest statusRequest = new UpdatePurchaseOrderStatusRequest(PurchaseOrderStatus.RECEIVED);
 
         assertThrows(BusinessException.class, () -> purchaseOrderService.updateStatus(adminPrincipal, poId, statusRequest));
-        verify(productService, never()).adjustStock(any(), any(), any());
+        verify(productService, never()).adjustStockForOrder(any(), any(), any());
     }
 }
