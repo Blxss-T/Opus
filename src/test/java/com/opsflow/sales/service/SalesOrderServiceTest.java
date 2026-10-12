@@ -113,7 +113,7 @@ class SalesOrderServiceTest {
         );
 
         when(customerRepository.findByIdAndOrganizationIdAndActiveTrue(customerId, orgId)).thenReturn(Optional.of(customer));
-        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(organization));
+        when(organizationRepository.findByIdForUpdate(orgId)).thenReturn(Optional.of(organization));
         when(salesOrderRepository.countByOrganizationId(orgId)).thenReturn(0L);
         when(productRepository.findByIdAndOrganizationIdAndActiveTrue(productId, orgId)).thenReturn(Optional.of(product));
         when(salesOrderRepository.save(any(SalesOrder.class))).thenAnswer(inv -> inv.getArgument(0));

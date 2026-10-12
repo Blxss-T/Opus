@@ -63,7 +63,9 @@ public class PurchaseOrderService {
         Supplier supplier = supplierRepository.findByIdAndOrganizationIdAndActiveTrue(request.supplierId(), organizationId)
             .orElseThrow(() -> new ResourceNotFoundException("Supplier", "id", request.supplierId()));
 
-        Organization organization = organizationRepository.findById(organizationId)
+        // Row lock serializes number generation per organization so concurrent
+        // creates cannot both read the same count.
+        Organization organization = organizationRepository.findByIdForUpdate(organizationId)
             .orElseThrow(() -> new ResourceNotFoundException("Organization", "id", organizationId));
 
         long count = purchaseOrderRepository.countByOrganizationId(organizationId);

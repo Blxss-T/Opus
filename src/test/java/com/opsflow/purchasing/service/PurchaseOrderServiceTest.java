@@ -113,7 +113,7 @@ class PurchaseOrderServiceTest {
         );
 
         when(supplierRepository.findByIdAndOrganizationIdAndActiveTrue(supplierId, orgId)).thenReturn(Optional.of(supplier));
-        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(organization));
+        when(organizationRepository.findByIdForUpdate(orgId)).thenReturn(Optional.of(organization));
         when(purchaseOrderRepository.countByOrganizationId(orgId)).thenReturn(0L);
         when(productRepository.findByIdAndOrganizationIdAndActiveTrue(productId, orgId)).thenReturn(Optional.of(product));
         when(purchaseOrderRepository.save(any(PurchaseOrder.class))).thenAnswer(inv -> inv.getArgument(0));

@@ -31,8 +31,16 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -290,5 +298,44 @@ class SalesOrderControllerTest {
         mockMvc.perform(get("/api/v1/sales-orders/" + soId)
                 .header("Authorization", "Bearer " + adminAToken))
             .andExpect(jsonPath("$.data.status").value("CONFIRMED"));
+    }
+
+    @Test
+    void concurrentCreatesShouldGetDistinctOrderNumbers() throws Exception {
+        int requests = 8;
+        String body = objectMapper.writeValueAsString(new CreateSalesOrderRequest(
+            customerA.getId(),
+            LocalDate.now().plusDays(5),
+            "Concurrent order",
+            List.of(new SalesOrderItemRequest(productA.getId(), 1, new BigDecimal("150.00")))
+        ));
+
+        ExecutorService executor = Executors.newFixedThreadPool(requests);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            List<Future<MvcResult>> futures = new ArrayList<>();
+            for (int i = 0; i < requests; i++) {
+                futures.add(executor.submit(() -> {
+                    start.await();
+                    return mockMvc.perform(post("/api/v1/sales-orders")
+                            .header("Authorization", "Bearer " + adminAToken)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                        .andReturn();
+                }));
+            }
+            start.countDown();
+
+            Set<String> soNumbers = new HashSet<>();
+            for (Future<MvcResult> future : futures) {
+                MvcResult result = future.get(30, TimeUnit.SECONDS);
+                assertEquals(201, result.getResponse().getStatus(), result.getResponse().getContentAsString());
+                soNumbers.add(objectMapper.readTree(result.getResponse().getContentAsString())
+                    .path("data").path("soNumber").asText());
+            }
+            assertEquals(requests, soNumbers.size());
+        } finally {
+            executor.shutdownNow();
+        }
     }
 }
