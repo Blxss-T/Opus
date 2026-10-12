@@ -33,7 +33,7 @@ Redis is intentionally **not** in local compose until there is a caching or rate
 ### Prerequisites
 
 - JDK 21+
-- Apache Maven 3.9+
+- Maven is not required: the bundled wrapper (`./mvnw`, or `mvnw.cmd` on Windows cmd) downloads it
 - Docker and Docker Compose
 
 ### Infrastructure
@@ -42,12 +42,14 @@ Redis is intentionally **not** in local compose until there is a caching or rate
 docker compose up -d
 ```
 
+This starts PostgreSQL and Mailpit. Emails sent in the dev profile (OTP and password reset codes) are viewable at `http://localhost:8025`.
+
 Copy `.env.example` to `.env` if you want local overrides. Do not commit real secrets.
 
 ### Run
 
 ```bash
-mvn spring-boot:run -Dspring-boot.run.profiles=dev
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
 ### Verify
@@ -59,7 +61,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ### Tests
 
 ```bash
-mvn test
+./mvnw test
 ```
 
 PostgreSQL Testcontainers tests use the `it` profile and require Docker.
