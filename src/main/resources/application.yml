@@ -45,6 +45,9 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  # Set to "native" when running behind a reverse proxy so the client IP
+  # (used for rate limiting) comes from X-Forwarded-For of trusted proxies.
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:none}
   error:
     include-message: always
     include-binding-errors: always

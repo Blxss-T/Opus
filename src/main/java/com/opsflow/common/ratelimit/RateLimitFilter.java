@@ -132,11 +132,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
     }
 
+    /**
+     * The X-Forwarded-For header is deliberately not read here: any client can
+     * set it and get a fresh limit per request. Behind a reverse proxy, set
+     * server.forward-headers-strategy=native so the container resolves the
+     * real client address from trusted proxies into getRemoteAddr().
+     */
     private String clientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
-        }
         return request.getRemoteAddr();
     }
 

@@ -216,6 +216,8 @@ All metrics are scoped to the caller's organization. Revenue counts `FULFILLED` 
 
 Public auth endpoints (`/auth/login`, `/auth/register`, `/auth/google`, `/auth/otp/send`, `/auth/password/forgot`, `/auth/password/reset`) are rate limited per IP + endpoint: default 10 requests per 60 seconds, returning `429 Too Many Requests` with a `Retry-After` header. Tune with `RATE_LIMIT_ENABLED`, `RATE_LIMIT_LIMIT`, `RATE_LIMIT_WINDOW_SECONDS`. The implementation is in-memory (single node); move to Redis when scaling beyond one instance.
 
+The client IP is the connection's remote address; a client-supplied `X-Forwarded-For` header is ignored. When deploying behind a reverse proxy or load balancer, set `FORWARD_HEADERS_STRATEGY=native` so the real client IP is taken from the trusted proxy's forwarded headers — otherwise every user shares the proxy's IP and one limit.
+
 ## CORS
 
 Browser frontends on another origin must be listed in `CORS_ALLOWED_ORIGINS` (comma-separated, applies to `/api/**`). The dev profile defaults to `http://localhost:3000` and `http://localhost:5173`; other profiles default to empty, which blocks all cross-origin requests. Authentication uses the `Authorization: Bearer` header, so cookies/credentials are not enabled.

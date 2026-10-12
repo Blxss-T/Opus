@@ -1,6 +1,9 @@
 package com.opsflow.common.ratelimit;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockFilterChain;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -8,6 +11,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -96,6 +100,30 @@ class RateLimitFilterTest {
 
         clock.advance(Duration.ofSeconds(61));
         assertTrue(filter.tryAcquire("ip1|/login"));
+    }
+
+    @Test
+    void shouldNotLetForwardedHeaderBypassTheLimit() throws Exception {
+        RateLimitFilter filter = new RateLimitFilter(
+            new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules(),
+            true,
+            2,
+            60,
+            Clock.systemUTC()
+        );
+
+        int lastStatus = 0;
+        for (int i = 0; i < 3; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/auth/login");
+            request.setRemoteAddr("203.0.113.7");
+            request.addHeader("X-Forwarded-For", "10.0.0." + i);
+            MockHttpServletResponse response = new MockHttpServletResponse();
+
+            filter.doFilter(request, response, new MockFilterChain());
+            lastStatus = response.getStatus();
+        }
+
+        assertEquals(429, lastStatus);
     }
 
     @Test
