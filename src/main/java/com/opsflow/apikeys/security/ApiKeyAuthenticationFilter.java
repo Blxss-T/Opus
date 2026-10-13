@@ -6,6 +6,7 @@ import com.opsflow.apikeys.service.ApiKeyService;
 import com.opsflow.apikeys.service.AuthenticatedApiKey;
 import com.opsflow.auth.security.UserPrincipal;
 import com.opsflow.common.exception.ErrorCode;
+import com.opsflow.common.ratelimit.SlidingWindowRateLimiter;
 import com.opsflow.common.response.ApiResponse;
 import com.opsflow.common.response.ErrorResponse;
 import com.opsflow.users.domain.Role;
@@ -13,6 +14,9 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -40,12 +44,26 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     public static final String HEADER = "X-API-Key";
     public static final String ACTOR_PREFIX = "api-key:";
 
+    private static final Logger log = LoggerFactory.getLogger(ApiKeyAuthenticationFilter.class);
+
     private final ApiKeyService apiKeyService;
     private final ObjectMapper objectMapper;
+    private final boolean rateLimitEnabled;
+    private final long rateLimitWindowSeconds;
+    private final SlidingWindowRateLimiter rateLimiter;
 
-    public ApiKeyAuthenticationFilter(ApiKeyService apiKeyService, ObjectMapper objectMapper) {
+    public ApiKeyAuthenticationFilter(
+        ApiKeyService apiKeyService,
+        ObjectMapper objectMapper,
+        @Value("${security.api-keys.rate-limit.enabled:true}") boolean rateLimitEnabled,
+        @Value("${security.api-keys.rate-limit.limit:120}") int rateLimit,
+        @Value("${security.api-keys.rate-limit.window-seconds:60}") long rateLimitWindowSeconds
+    ) {
         this.apiKeyService = apiKeyService;
         this.objectMapper = objectMapper;
+        this.rateLimitEnabled = rateLimitEnabled;
+        this.rateLimitWindowSeconds = rateLimitWindowSeconds;
+        this.rateLimiter = new SlidingWindowRateLimiter(rateLimit, rateLimitWindowSeconds);
     }
 
     @Override
@@ -67,6 +85,14 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
         AuthenticatedApiKey apiKey = authenticated.get();
+
+        // Per key, across all endpoints, so one integration cannot starve the rest.
+        if (rateLimitEnabled && !rateLimiter.tryAcquire(apiKey.id().toString())) {
+            log.warn("Rate limit exceeded for API key '{}' ({})", apiKey.name(), apiKey.id());
+            response.setHeader("Retry-After", String.valueOf(rateLimitWindowSeconds));
+            writeError(request, response, 429, "ERR_429", "Too many requests for this API key. Please try again later.");
+            return;
+        }
 
         Optional<ApiKeyScope> required = ApiKeyScope.requiredFor(request.getMethod(), request.getRequestURI());
         if (required.isEmpty()) {
@@ -95,12 +121,22 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         ErrorCode errorCode,
         String message
     ) throws IOException {
-        response.setStatus(errorCode.getHttpStatus().value());
+        writeError(request, response, errorCode.getHttpStatus().value(), errorCode.getCode(), message);
+    }
+
+    private void writeError(
+        HttpServletRequest request,
+        HttpServletResponse response,
+        int status,
+        String code,
+        String message
+    ) throws IOException {
+        response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
         ErrorResponse errorResponse = ErrorResponse.builder()
-            .status(errorCode.getHttpStatus().value())
-            .error(errorCode.getCode())
+            .status(status)
+            .error(code)
             .message(message)
             .path(request.getRequestURI())
             .timestamp(Instant.now())
