@@ -76,6 +76,10 @@ Override the password with `OPUS_SEED_PASSWORD`.
 - Actuator: `http://localhost:8080/actuator/health`
 - Swagger: `http://localhost:8080/swagger-ui.html`
 
+### Postman
+
+Import `postman/opus.postman_collection.json`. Run **Auth > Login** first: it stores the access and refresh tokens as collection variables and every other request sends them automatically. Create requests store the new record's id for the requests that follow. The collection defaults to `http://localhost:8080/api/v1` and the demo admin account; change `baseUrl`, `email` and `password` under the collection's Variables tab.
+
 ### Tests
 
 ```bash
