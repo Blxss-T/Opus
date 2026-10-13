@@ -63,6 +63,8 @@ public class OpenApiConfig {
         click **Authorize** and paste it. Access tokens are short-lived; exchange `data.refreshToken` at \
         `POST /api/v1/auth/refresh` for a new pair.
 
+        **Other applications.** An `ORG_ADMIN` creates an API key at `POST /api/v1/api-keys` and the         application sends it as the `X-API-Key` header instead of a token. A key is limited to its scopes         (`products:read`, `sales-orders:write`, ...; `:write` includes `:read`) and cannot reach the         user, auth or API key endpoints.
+
         **Responses.** Every response is wrapped in an envelope: `success`, `timestamp`, and either `data` \
         or `error`. Errors carry a stable `error.error` code (`ERR_400`, `ERR_401`, `ERR_403`, `ERR_404`, \
         `ERR_409`, `ERR_422`, `ERR_503`, `ERR_500`) and, for validation failures, per-field `error.details`.
@@ -78,8 +80,14 @@ public class OpenApiConfig {
                 .addSecuritySchemes("bearer-jwt", new SecurityScheme()
                     .type(SecurityScheme.Type.HTTP)
                     .scheme("bearer")
-                    .bearerFormat("JWT")))
+                    .bearerFormat("JWT"))
+                .addSecuritySchemes("api-key", new SecurityScheme()
+                    .type(SecurityScheme.Type.APIKEY)
+                    .in(SecurityScheme.In.HEADER)
+                    .name("X-API-Key")
+                    .description("For other applications. Created by the ORG_ADMIN at POST /api/v1/api-keys.")))
             .addSecurityItem(new SecurityRequirement().addList("bearer-jwt"))
+            .addSecurityItem(new SecurityRequirement().addList("api-key"))
             .info(new Info()
                 .title("Opus API Documentation")
                 .version("1.0.0")

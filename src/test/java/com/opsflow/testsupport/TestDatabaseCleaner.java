@@ -16,6 +16,7 @@ public class TestDatabaseCleaner {
 
     private static final List<String> TABLES_IN_DELETE_ORDER = List.of(
         "refresh_tokens",
+        "api_keys",
         "sales_order_items",
         "sales_orders",
         "purchase_order_items",
