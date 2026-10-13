@@ -62,6 +62,14 @@
     {
       "key": "salesOrderId",
       "value": ""
+    },
+    {
+      "key": "apiKey",
+      "value": ""
+    },
+    {
+      "key": "apiKeyId",
+      "value": ""
     }
   ],
   "item": [
@@ -1384,6 +1392,11 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Optional. Reuse the same value when retrying to avoid creating a duplicate order."
               }
             ],
             "url": {
@@ -1582,6 +1595,11 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Optional. Reuse the same value when retrying to avoid creating a duplicate order."
               }
             ],
             "url": {
@@ -1897,6 +1915,194 @@
           }
         }
       ]
+    },
+    {
+      "name": "API Keys",
+      "item": [
+        {
+          "name": "List available scopes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api-keys/scopes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api-keys",
+                "scopes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create API key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api-keys",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api-keys"
+              ]
+            },
+            "description": "ORG_ADMIN only. The raw key is in data.key and is shown only once; it is saved to the apiKey variable.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Storefront integration\",\n  \"scopes\": [\n    \"products:read\",\n    \"sales-orders:write\",\n    \"reports:read\"\n  ],\n  \"expiresAt\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.data && body.data.key) {",
+                  "    pm.collectionVariables.set('apiKey', body.data.key);",
+                  "    pm.collectionVariables.set('apiKeyId', body.data.apiKey.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List API keys",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api-keys",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api-keys"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Call the API with the key",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0",
+                  "disabled": true
+                },
+                {
+                  "key": "size",
+                  "value": "20",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Authenticates with the X-API-Key header instead of a token. Works because the key has products:read.",
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "X-API-Key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "{{apiKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Call outside the key's scopes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers"
+              ]
+            },
+            "description": "Returns 403: the key above has no customers scope.",
+            "auth": {
+              "type": "apikey",
+              "apikey": [
+                {
+                  "key": "key",
+                  "value": "X-API-Key",
+                  "type": "string"
+                },
+                {
+                  "key": "value",
+                  "value": "{{apiKey}}",
+                  "type": "string"
+                },
+                {
+                  "key": "in",
+                  "value": "header",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Revoke API key",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api-keys/{{apiKeyId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api-keys",
+                "{{apiKeyId}}"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Keys for other applications. Managed with a signed-in ORG_ADMIN session; used via the X-API-Key header."
     },
     {
       "name": "Health",

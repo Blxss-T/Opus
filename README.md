@@ -17,6 +17,7 @@ Increments 1-4:
 - Sales Orders: customer sales with lifecycle `DRAFT -> CONFIRMED -> FULFILLED/CANCELLED`, automatic inventory depletion on fulfillment (Flyway V10)
 - Reporting & Dashboard: read-only aggregated metrics (revenue, spend, low-stock alerts, top customers/suppliers, category breakdowns, daily/monthly sales trends) with tenant isolation
 - Sessions & Hardening: refresh token rotation with reuse detection, logout, password change/reset (OTP-based), password-changed session invalidation, and IP rate limiting on public auth endpoints
+- Integrations: scoped API keys (`X-API-Key`) with per-key rate limiting, and `Idempotency-Key` support on order creation
 
 ## Stack
 
@@ -236,6 +237,31 @@ All metrics are scoped to the caller's organization. Revenue counts `FULFILLED` 
 | GET | `/reports/sales/daily` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` | Fulfilled sales per day, last 30 days |
 | GET | `/reports/sales/monthly-trend` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` | Fulfilled sales per month |
 
+## API keys (access for other applications)
+
+Another application calls the API with an API key instead of a person's login. The `ORG_ADMIN` creates the key while signed in; the application then sends it on every request:
+
+```bash
+curl -H "X-API-Key: opk_..." http://localhost:8080/api/v1/products
+```
+
+| Method | Path | Roles | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api-keys/scopes` | `ORG_ADMIN` | Scopes that can be granted |
+| POST | `/api-keys` | `ORG_ADMIN` | Create a key (`name`, `scopes[]`, optional `expiresAt`); the raw key is returned once in `data.key` |
+| GET | `/api-keys` | `ORG_ADMIN` | List keys (prefix only), including revoked and expired ones |
+| DELETE | `/api-keys/{id}` | `ORG_ADMIN` | Revoke a key immediately |
+
+- **Scopes.** `products`, `customers`, `suppliers`, `purchase-orders` and `sales-orders` each have `:read` and `:write`; `employees` and `reports` have `:read` only. `GET` requests need the read scope, everything else the write scope, and a write scope includes read. A request outside the key's scopes returns `403`.
+- **Limits of a key.** A key only sees its own organization and cannot reach the user, auth or API key endpoints, so it cannot create users or other keys.
+- **Storage.** Only a SHA-256 hash and a short display prefix are stored. A lost key cannot be recovered; revoke it and create a new one.
+- **Rate limit.** Each key gets 120 requests per minute across all endpoints (`API_KEY_RATE_LIMIT`, `API_KEY_RATE_LIMIT_WINDOW_SECONDS`), then `429` with `Retry-After`. In-memory, single node.
+- **Attribution.** Orders and stock movements written by a key are recorded as `api-key:<name>`.
+
+## Idempotent order creation
+
+`POST /purchase-orders` and `POST /sales-orders` accept an optional `Idempotency-Key` header (up to 100 characters, for example a UUID). If a request times out, retry it with the same key: the API returns the order created the first time with `200` and `Idempotency-Replayed: true` instead of creating a duplicate. Keys are scoped to the organization, and the first request's body wins; the body of a replay is not compared.
+
 ## Sessions
 
 - Access tokens are short-lived JWTs (15 minutes by default, `JWT_EXPIRATION_MS` in milliseconds); clients call `/auth/refresh` to get a new one. Refresh tokens are random 256-bit values stored only as SHA-256 hashes (`refresh_tokens` table, 7-day TTL by default via `REFRESH_TOKEN_TTL` minutes).
@@ -254,4 +280,4 @@ Browser frontends on another origin must be listed in `CORS_ALLOWED_ORIGINS` (co
 
 ## Environment
 
-See `.env.example` for `DB_*`, `JWT_SECRET`, `JWT_EXPIRATION_MS`, `REFRESH_TOKEN_TTL`, `RATE_LIMIT_*`, `CORS_ALLOWED_ORIGINS`, `GOOGLE_CLIENT_ID`, `OTP_PEPPER`, and `MAIL_*`.
+See `.env.example` for `DB_*`, `JWT_SECRET`, `JWT_EXPIRATION_MS`, `REFRESH_TOKEN_TTL`, `RATE_LIMIT_*`, `CORS_ALLOWED_ORIGINS`, `GOOGLE_CLIENT_ID`, `OTP_PEPPER`, `API_KEY_RATE_LIMIT*`, and `MAIL_*`.
