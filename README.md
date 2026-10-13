@@ -88,7 +88,7 @@ Integration tests use the `it` profile and require Docker; they are skipped when
 | POST | `/auth/password/forgot` | public | Send password reset code; response never reveals account existence |
 | POST | `/auth/password/reset` | public | Reset password with emailed code; revokes all sessions |
 
-Google mock tokens (`mock-google-token:email:First:Last`) work only when `security.google.allow-mock-tokens=true` (dev/test). Production must set `GOOGLE_CLIENT_ID` and a unique `JWT_SECRET`.
+Google mock tokens (`mock-google-token:email:First:Last`) work only when `security.google.allow-mock-tokens=true` (dev/test). Production must set a unique `JWT_SECRET` (32+ characters) and `OTP_PEPPER` (16+ characters); the app refuses to start in the `prod` profile if either is missing or still a committed dev/example value. Set `GOOGLE_CLIENT_ID` to enable Google sign-in; without it every Google token is rejected.
 
 ## Pagination, filtering & sorting
 
