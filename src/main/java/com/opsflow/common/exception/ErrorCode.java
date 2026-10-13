@@ -10,7 +10,8 @@ public enum ErrorCode {
     UNAUTHORIZED("ERR_401", "Authentication failure or missing credentials", HttpStatus.UNAUTHORIZED),
     FORBIDDEN("ERR_403", "Access denied for requested operation", HttpStatus.FORBIDDEN),
     CONFLICT("ERR_409", "The resource was modified by another request", HttpStatus.CONFLICT),
-    BUSINESS_RULE_VIOLATION("ERR_422", "Business rule violation occurred", HttpStatus.UNPROCESSABLE_ENTITY);
+    BUSINESS_RULE_VIOLATION("ERR_422", "Business rule violation occurred", HttpStatus.UNPROCESSABLE_ENTITY),
+    SERVICE_UNAVAILABLE("ERR_503", "A required service is temporarily unavailable", HttpStatus.SERVICE_UNAVAILABLE);
 
     private final String code;
     private final String defaultMessage;

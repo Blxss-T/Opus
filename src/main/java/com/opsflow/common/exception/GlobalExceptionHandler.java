@@ -1,5 +1,6 @@
 package com.opsflow.common.exception;
 
+import com.opsflow.common.mail.EmailDeliveryException;
 import com.opsflow.common.response.ApiResponse;
 import com.opsflow.common.response.ErrorResponse;
 import com.opsflow.common.response.FieldErrorDetail;
@@ -107,6 +108,19 @@ public class GlobalExceptionHandler {
             .timestamp(Instant.now())
             .build();
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(errorResponse));
+    }
+
+    @ExceptionHandler(EmailDeliveryException.class)
+    public ResponseEntity<ApiResponse<Void>> handleEmailDelivery(EmailDeliveryException ex, HttpServletRequest request) {
+        log.error("Email delivery failed at path '{}': ", request.getRequestURI(), ex);
+        ErrorResponse errorResponse = ErrorResponse.builder()
+            .status(HttpStatus.SERVICE_UNAVAILABLE.value())
+            .error(ErrorCode.SERVICE_UNAVAILABLE.getCode())
+            .message("The email could not be sent. Please try again later.")
+            .path(request.getRequestURI())
+            .timestamp(Instant.now())
+            .build();
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiResponse.error(errorResponse));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
