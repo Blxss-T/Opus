@@ -1,6 +1,8 @@
 package com.opsflow.sales.controller;
 
 import com.opsflow.auth.security.UserPrincipal;
+import com.opsflow.common.idempotency.IdempotencyKeys;
+import com.opsflow.common.idempotency.IdempotentResult;
 import com.opsflow.common.response.ApiResponse;
 import com.opsflow.sales.domain.SalesOrderStatus;
 import com.opsflow.sales.dto.CreateSalesOrderRequest;
@@ -8,6 +10,7 @@ import com.opsflow.sales.dto.SalesOrderResponse;
 import com.opsflow.sales.dto.UpdateSalesOrderStatusRequest;
 import com.opsflow.sales.service.SalesOrderService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,10 +47,13 @@ public class SalesOrderController {
     @Operation(summary = "Create Sales Order", description = "Drafts a new sales order with line items for a customer.")
     public ResponseEntity<ApiResponse<SalesOrderResponse>> createSalesOrder(
         @AuthenticationPrincipal UserPrincipal principal,
+        @Parameter(description = IdempotencyKeys.DESCRIPTION)
+        @RequestHeader(value = IdempotencyKeys.HEADER, required = false) String idempotencyKey,
         @Valid @RequestBody CreateSalesOrderRequest request
     ) {
-        SalesOrderResponse response = salesOrderService.createSalesOrder(principal, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+        IdempotentResult<SalesOrderResponse> result = salesOrderService.createSalesOrder(
+            principal, request, IdempotencyKeys.normalize(idempotencyKey));
+        return IdempotencyKeys.toResponse(result);
     }
 
     @GetMapping

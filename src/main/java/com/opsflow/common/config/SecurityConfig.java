@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opsflow.apikeys.security.ApiKeyAuthenticationFilter;
 import com.opsflow.auth.security.JwtAuthenticationFilter;
 import com.opsflow.common.exception.ErrorCode;
+import com.opsflow.common.idempotency.IdempotencyKeys;
 import com.opsflow.common.response.ApiResponse;
 import com.opsflow.common.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletResponse;
@@ -90,8 +91,8 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(corsAllowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", ApiKeyAuthenticationFilter.HEADER));
-        configuration.setExposedHeaders(List.of("Retry-After"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", ApiKeyAuthenticationFilter.HEADER, IdempotencyKeys.HEADER));
+        configuration.setExposedHeaders(List.of("Retry-After", IdempotencyKeys.REPLAYED_HEADER));
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

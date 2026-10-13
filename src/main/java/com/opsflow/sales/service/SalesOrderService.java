@@ -4,6 +4,7 @@ import com.opsflow.auth.security.UserPrincipal;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.common.exception.ErrorCode;
 import com.opsflow.common.exception.ResourceNotFoundException;
+import com.opsflow.common.idempotency.IdempotentResult;
 import com.opsflow.common.jpa.FilterSpecs;
 import com.opsflow.customers.domain.Customer;
 import com.opsflow.customers.repository.CustomerRepository;
@@ -31,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -58,6 +60,16 @@ public class SalesOrderService {
 
     @Transactional
     public SalesOrderResponse createSalesOrder(UserPrincipal principal, CreateSalesOrderRequest request) {
+        return createSalesOrder(principal, request, null).value();
+    }
+
+    /**
+     * Creates the order, or returns the order already created with the same
+     * idempotency key so a client can safely retry a request whose response
+     * it never received.
+     */
+    @Transactional
+    public IdempotentResult<SalesOrderResponse> createSalesOrder(UserPrincipal principal, CreateSalesOrderRequest request, String idempotencyKey) {
         UUID organizationId = principal.getOrganizationId();
 
         Customer customer = customerRepository.findByIdAndOrganizationIdAndActiveTrue(request.customerId(), organizationId)
@@ -67,6 +79,15 @@ public class SalesOrderService {
         // creates cannot both read the same count.
         Organization organization = organizationRepository.findByIdForUpdate(organizationId)
             .orElseThrow(() -> new ResourceNotFoundException("Organization", "id", organizationId));
+
+        // Checked under the organization lock, so two concurrent requests with
+        // the same key cannot both create an order.
+        if (idempotencyKey != null) {
+            Optional<SalesOrder> existing = salesOrderRepository.findByOrganizationIdAndIdempotencyKey(organizationId, idempotencyKey);
+            if (existing.isPresent()) {
+                return IdempotentResult.replayed(SalesOrderResponse.fromEntity(existing.get()));
+            }
+        }
 
         long count = salesOrderRepository.countByOrganizationId(organizationId);
         String soNumber = String.format("SO-%d-%04d", LocalDate.now().getYear(), count + 1);
@@ -103,9 +124,10 @@ public class SalesOrderService {
         }
 
         so.setTotalAmount(totalAmount);
+        so.setIdempotencyKey(idempotencyKey);
         SalesOrder savedSo = salesOrderRepository.save(so);
 
-        return SalesOrderResponse.fromEntity(savedSo);
+        return IdempotentResult.created(SalesOrderResponse.fromEntity(savedSo));
     }
 
     @Transactional

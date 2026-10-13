@@ -54,6 +54,10 @@ public class PurchaseOrder extends BaseEntity {
     @Column(name = "created_by_email", nullable = false)
     private String createdByEmail;
 
+    /** Client-supplied key that makes creation safe to retry; unique per organization. */
+    @Column(name = "idempotency_key", length = 100)
+    private String idempotencyKey;
+
     @OneToMany(mappedBy = "purchaseOrder", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PurchaseOrderItem> items = new ArrayList<>();
 
@@ -165,5 +169,13 @@ public class PurchaseOrder extends BaseEntity {
 
     public void setItems(List<PurchaseOrderItem> items) {
         this.items = items;
+    }
+
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
+
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
     }
 }
