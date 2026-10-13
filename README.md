@@ -64,7 +64,13 @@ Copy `.env.example` to `.env` if you want local overrides. Do not commit real se
 ./mvnw test
 ```
 
-PostgreSQL Testcontainers tests use the `it` profile and require Docker.
+`./mvnw test` runs the unit and controller tests on in-memory H2. To also run the PostgreSQL integration tests (`*IT` classes, which apply the real Flyway migrations in a Testcontainers database), use:
+
+```bash
+./mvnw verify
+```
+
+Integration tests use the `it` profile and require Docker; they are skipped when Docker is not running.
 
 ## Auth APIs (`/api/v1`)
 
