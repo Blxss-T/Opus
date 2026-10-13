@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -104,30 +105,42 @@ public class SalesOrderService {
             principal.getUsername()
         );
 
-        BigDecimal totalAmount = BigDecimal.ZERO;
-
-        for (SalesOrderItemRequest itemReq : request.items()) {
-            Product product = productRepository.findByIdAndOrganizationIdAndActiveTrue(itemReq.productId(), organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product", "id", itemReq.productId()));
-
-            BigDecimal subtotal = itemReq.unitPrice().multiply(BigDecimal.valueOf(itemReq.quantity()));
-            totalAmount = totalAmount.add(subtotal);
-
-            SalesOrderItem item = new SalesOrderItem(
-                so,
-                product,
-                itemReq.quantity(),
-                itemReq.unitPrice(),
-                subtotal
-            );
-            so.addItem(item);
-        }
-
-        so.setTotalAmount(totalAmount);
+        so.setTotalAmount(addItems(so, request.items(), organizationId));
         so.setIdempotencyKey(idempotencyKey);
         SalesOrder savedSo = salesOrderRepository.save(so);
 
         return IdempotentResult.created(SalesOrderResponse.fromEntity(savedSo));
+    }
+
+    /**
+     * Replaces the customer, notes, delivery date and line items of a draft.
+     * Once an order leaves DRAFT its contents are fixed.
+     */
+    @Transactional
+    public SalesOrderResponse updateSalesOrder(UserPrincipal principal, UUID soId, CreateSalesOrderRequest request) {
+        UUID organizationId = principal.getOrganizationId();
+        SalesOrder so = findSalesOrderForTenant(organizationId, soId);
+
+        if (so.getStatus() != SalesOrderStatus.DRAFT) {
+            throw new BusinessException(
+                ErrorCode.BUSINESS_RULE_VIOLATION,
+                String.format("Only DRAFT sales orders can be edited; this one is %s", so.getStatus())
+            );
+        }
+
+        Customer customer = customerRepository.findByIdAndOrganizationIdAndActiveTrue(request.customerId(), organizationId)
+            .orElseThrow(() -> new ResourceNotFoundException("Customer", "id", request.customerId()));
+
+        so.setCustomer(customer);
+        so.setNotes(request.notes());
+        so.setExpectedDeliveryDate(request.expectedDeliveryDate());
+
+        // Flushed so the old lines are deleted before the replacements are inserted.
+        so.getItems().clear();
+        salesOrderRepository.flush();
+        so.setTotalAmount(addItems(so, request.items(), organizationId));
+
+        return SalesOrderResponse.fromEntity(salesOrderRepository.save(so));
     }
 
     @Transactional
@@ -198,5 +211,28 @@ public class SalesOrderService {
     private SalesOrder findSalesOrderForTenant(UUID organizationId, UUID soId) {
         return salesOrderRepository.findByIdAndOrganizationId(soId, organizationId)
             .orElseThrow(() -> new ResourceNotFoundException("SalesOrder", "id", soId));
+    }
+
+    /** Adds the requested lines to the order and returns their total. */
+    private BigDecimal addItems(SalesOrder so, List<SalesOrderItemRequest> items, UUID organizationId) {
+        BigDecimal totalAmount = BigDecimal.ZERO;
+
+        for (SalesOrderItemRequest itemReq : items) {
+            Product product = productRepository.findByIdAndOrganizationIdAndActiveTrue(itemReq.productId(), organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", "id", itemReq.productId()));
+
+            BigDecimal subtotal = itemReq.unitPrice().multiply(BigDecimal.valueOf(itemReq.quantity()));
+            totalAmount = totalAmount.add(subtotal);
+
+            so.addItem(new SalesOrderItem(
+                so,
+                product,
+                itemReq.quantity(),
+                itemReq.unitPrice(),
+                subtotal
+            ));
+        }
+
+        return totalAmount;
     }
 }

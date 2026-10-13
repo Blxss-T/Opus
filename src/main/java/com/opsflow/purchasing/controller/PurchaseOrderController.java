@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -76,6 +77,18 @@ public class PurchaseOrderController {
         @PathVariable UUID id
     ) {
         PurchaseOrderResponse response = purchaseOrderService.getPurchaseOrder(principal, id);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ORG_ADMIN', 'MANAGER')")
+    @Operation(summary = "Update Draft Purchase Order", description = "Replaces the supplier, notes, expected delivery date and line items of a DRAFT purchase order. Orders in any other status cannot be edited.")
+    public ResponseEntity<ApiResponse<PurchaseOrderResponse>> updatePurchaseOrder(
+        @AuthenticationPrincipal UserPrincipal principal,
+        @PathVariable UUID id,
+        @Valid @RequestBody CreatePurchaseOrderRequest request
+    ) {
+        PurchaseOrderResponse response = purchaseOrderService.updatePurchaseOrder(principal, id, request);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -104,30 +105,42 @@ public class PurchaseOrderService {
             principal.getUsername()
         );
 
-        BigDecimal totalAmount = BigDecimal.ZERO;
-
-        for (PurchaseOrderItemRequest itemReq : request.items()) {
-            Product product = productRepository.findByIdAndOrganizationIdAndActiveTrue(itemReq.productId(), organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product", "id", itemReq.productId()));
-
-            BigDecimal subtotal = itemReq.unitCost().multiply(BigDecimal.valueOf(itemReq.quantity()));
-            totalAmount = totalAmount.add(subtotal);
-
-            PurchaseOrderItem item = new PurchaseOrderItem(
-                po,
-                product,
-                itemReq.quantity(),
-                itemReq.unitCost(),
-                subtotal
-            );
-            po.addItem(item);
-        }
-
-        po.setTotalAmount(totalAmount);
+        po.setTotalAmount(addItems(po, request.items(), organizationId));
         po.setIdempotencyKey(idempotencyKey);
         PurchaseOrder savedPo = purchaseOrderRepository.save(po);
 
         return IdempotentResult.created(PurchaseOrderResponse.fromEntity(savedPo));
+    }
+
+    /**
+     * Replaces the supplier, notes, delivery date and line items of a draft.
+     * Once an order leaves DRAFT its contents are fixed.
+     */
+    @Transactional
+    public PurchaseOrderResponse updatePurchaseOrder(UserPrincipal principal, UUID poId, CreatePurchaseOrderRequest request) {
+        UUID organizationId = principal.getOrganizationId();
+        PurchaseOrder po = findPurchaseOrderForTenant(organizationId, poId);
+
+        if (po.getStatus() != PurchaseOrderStatus.DRAFT) {
+            throw new BusinessException(
+                ErrorCode.BUSINESS_RULE_VIOLATION,
+                String.format("Only DRAFT purchase orders can be edited; this one is %s", po.getStatus())
+            );
+        }
+
+        Supplier supplier = supplierRepository.findByIdAndOrganizationIdAndActiveTrue(request.supplierId(), organizationId)
+            .orElseThrow(() -> new ResourceNotFoundException("Supplier", "id", request.supplierId()));
+
+        po.setSupplier(supplier);
+        po.setNotes(request.notes());
+        po.setExpectedDeliveryDate(request.expectedDeliveryDate());
+
+        // Flushed so the old lines are deleted before the replacements are inserted.
+        po.getItems().clear();
+        purchaseOrderRepository.flush();
+        po.setTotalAmount(addItems(po, request.items(), organizationId));
+
+        return PurchaseOrderResponse.fromEntity(purchaseOrderRepository.save(po));
     }
 
     @Transactional
@@ -198,5 +211,28 @@ public class PurchaseOrderService {
     private PurchaseOrder findPurchaseOrderForTenant(UUID organizationId, UUID poId) {
         return purchaseOrderRepository.findByIdAndOrganizationId(poId, organizationId)
             .orElseThrow(() -> new ResourceNotFoundException("PurchaseOrder", "id", poId));
+    }
+
+    /** Adds the requested lines to the order and returns their total. */
+    private BigDecimal addItems(PurchaseOrder po, List<PurchaseOrderItemRequest> items, UUID organizationId) {
+        BigDecimal totalAmount = BigDecimal.ZERO;
+
+        for (PurchaseOrderItemRequest itemReq : items) {
+            Product product = productRepository.findByIdAndOrganizationIdAndActiveTrue(itemReq.productId(), organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", "id", itemReq.productId()));
+
+            BigDecimal subtotal = itemReq.unitCost().multiply(BigDecimal.valueOf(itemReq.quantity()));
+            totalAmount = totalAmount.add(subtotal);
+
+            po.addItem(new PurchaseOrderItem(
+                po,
+                product,
+                itemReq.quantity(),
+                itemReq.unitCost(),
+                subtotal
+            ));
+        }
+
+        return totalAmount;
     }
 }

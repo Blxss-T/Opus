@@ -209,6 +209,7 @@ Organization is taken from the JWT, never from the client body. PO numbers are g
 | POST | `/purchase-orders` | `ORG_ADMIN`, `MANAGER` |
 | GET | `/purchase-orders` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
 | GET | `/purchase-orders/{id}` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
+| PUT | `/purchase-orders/{id}` | `ORG_ADMIN`, `MANAGER` (replaces a `DRAFT` order's supplier, notes, date and items) |
 | PATCH | `/purchase-orders/{id}/status` | `ORG_ADMIN`, `MANAGER` |
 
 ## Sales Order APIs
@@ -220,6 +221,7 @@ Organization is taken from the JWT, never from the client body. SO numbers are g
 | POST | `/sales-orders` | `ORG_ADMIN`, `MANAGER` |
 | GET | `/sales-orders` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
 | GET | `/sales-orders/{id}` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
+| PUT | `/sales-orders/{id}` | `ORG_ADMIN`, `MANAGER` (replaces a `DRAFT` order's customer, notes, date and items) |
 | PATCH | `/sales-orders/{id}/status` | `ORG_ADMIN`, `MANAGER` |
 
 ## Reporting APIs

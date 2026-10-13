@@ -1452,6 +1452,38 @@
           }
         },
         {
+          "name": "Update draft purchase order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/purchase-orders/{{purchaseOrderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "purchase-orders",
+                "{{purchaseOrderId}}"
+              ]
+            },
+            "description": "Replaces the whole order. Only DRAFT orders can be edited.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supplierId\": \"{{supplierId}}\",\n  \"expectedDeliveryDate\": \"2026-12-05\",\n  \"notes\": \"Restock (revised)\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 30,\n      \"unitCost\": 1.05\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
           "name": "Mark ordered",
           "request": {
             "method": "PATCH",
@@ -1651,6 +1683,38 @@
                 "sales-orders",
                 "{{salesOrderId}}"
               ]
+            }
+          }
+        },
+        {
+          "name": "Update draft sales order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sales-orders/{{salesOrderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sales-orders",
+                "{{salesOrderId}}"
+              ]
+            },
+            "description": "Replaces the whole order. Only DRAFT orders can be edited.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"expectedDeliveryDate\": \"2026-12-05\",\n  \"notes\": \"First order (revised)\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 8,\n      \"unitPrice\": 1.95\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           }
         },
