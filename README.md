@@ -52,6 +52,24 @@ Copy `.env.example` to `.env` if you want local overrides. Do not commit real se
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
+### Demo data
+
+To start with a populated database, add the `seed` profile:
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev,seed
+```
+
+On first start this creates the organization "Opus Demo Trading" with employees, customers, suppliers, products (two below their reorder level), and purchase and sales orders in every status, so each endpoint and report returns data. It is skipped on later starts and never runs in the `prod` profile.
+
+| Role | Email | Password |
+| --- | --- | --- |
+| `ORG_ADMIN` | `admin@opus-demo.test` | `DemoPass123!` |
+| `MANAGER` | `manager@opus-demo.test` | `DemoPass123!` |
+| `EMPLOYEE` | `employee@opus-demo.test` | `DemoPass123!` |
+
+Override the password with `OPUS_SEED_PASSWORD`.
+
 ### Verify
 
 - Health: `http://localhost:8080/api/v1/health`
