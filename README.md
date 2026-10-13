@@ -216,7 +216,7 @@ All metrics are scoped to the caller's organization. Revenue counts `FULFILLED` 
 
 ## Sessions
 
-- Access tokens are short-lived JWTs; refresh tokens are random 256-bit values stored only as SHA-256 hashes (`refresh_tokens` table, 7-day TTL by default via `REFRESH_TOKEN_TTL` minutes).
+- Access tokens are short-lived JWTs (15 minutes by default, `JWT_EXPIRATION_MS` in milliseconds); clients call `/auth/refresh` to get a new one. Refresh tokens are random 256-bit values stored only as SHA-256 hashes (`refresh_tokens` table, 7-day TTL by default via `REFRESH_TOKEN_TTL` minutes).
 - Refresh tokens are single use: each refresh returns a new token and revokes the old one. Presenting a revoked, expired, or already-rotated token revokes **all** sessions for that user (stolen-token mitigation).
 - Password change/reset stamps `users.password_changed_at`; access tokens issued before that instant are rejected by the JWT filter, and all refresh sessions are revoked.
 
@@ -232,4 +232,4 @@ Browser frontends on another origin must be listed in `CORS_ALLOWED_ORIGINS` (co
 
 ## Environment
 
-See `.env.example` for `DB_*`, `JWT_SECRET`, `REFRESH_TOKEN_TTL`, `RATE_LIMIT_*`, `CORS_ALLOWED_ORIGINS`, `GOOGLE_CLIENT_ID`, `OTP_PEPPER`, and `MAIL_*`.
+See `.env.example` for `DB_*`, `JWT_SECRET`, `JWT_EXPIRATION_MS`, `REFRESH_TOKEN_TTL`, `RATE_LIMIT_*`, `CORS_ALLOWED_ORIGINS`, `GOOGLE_CLIENT_ID`, `OTP_PEPPER`, and `MAIL_*`.
