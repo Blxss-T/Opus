@@ -18,6 +18,7 @@ Increments 1-4:
 - Reporting & Dashboard: read-only aggregated metrics (revenue, spend, low-stock alerts, top customers/suppliers, category breakdowns, daily/monthly sales trends) with tenant isolation
 - Sessions & Hardening: refresh token rotation with reuse detection, logout, password change/reset (OTP-based), password-changed session invalidation, and IP rate limiting on public auth endpoints
 - Integrations: scoped API keys (`X-API-Key`) with per-key rate limiting, and `Idempotency-Key` support on order creation
+- Audit log: who (user or API key) changed what, readable by the `ORG_ADMIN`
 
 ## Stack
 
@@ -272,6 +273,16 @@ curl -H "X-API-Key: opk_..." http://localhost:8080/api/v1/products
 ## Idempotent order creation
 
 `POST /purchase-orders` and `POST /sales-orders` accept an optional `Idempotency-Key` header (up to 100 characters, for example a UUID). If a request times out, retry it with the same key: the API returns the order created the first time with `200` and `Idempotency-Replayed: true` instead of creating a duplicate. Keys are scoped to the organization, and the first request's body wins; the body of a replay is not compared.
+
+## Audit log
+
+Every successful change made through the API (any non-`GET` request that returns `2xx`) by a signed-in user or an API key is recorded: who did it, the method and path, the resource type and id, the status code and the client IP. Reads, failed requests and unauthenticated calls such as login are not recorded. Request bodies are not stored.
+
+| Method | Path | Roles | Filters |
+| --- | --- | --- | --- |
+| GET | `/audit-log` | `ORG_ADMIN` | `actor` (email or `api-key:<name>`, contains), `actorType` (USER, API_KEY), `resourceType` (e.g. `products`), `resourceId` |
+
+Newest first, with the usual `page`, `size` and `sort`.
 
 ## Sessions
 

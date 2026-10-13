@@ -2221,6 +2221,60 @@
       "description": "Keys for other applications. Managed with a signed-in ORG_ADMIN session; used via the X-API-Key header."
     },
     {
+      "name": "Audit Log",
+      "item": [
+        {
+          "name": "List audit events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/audit-log",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "audit-log"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0",
+                  "disabled": true
+                },
+                {
+                  "key": "size",
+                  "value": "20",
+                  "disabled": true
+                },
+                {
+                  "key": "actor",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "actorType",
+                  "value": "API_KEY",
+                  "disabled": true
+                },
+                {
+                  "key": "resourceType",
+                  "value": "sales-orders",
+                  "disabled": true
+                },
+                {
+                  "key": "resourceId",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "ORG_ADMIN only. Every successful change made by a user or an API key, newest first."
+          }
+        }
+      ]
+    },
+    {
       "name": "Health",
       "item": [
         {
