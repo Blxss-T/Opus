@@ -20,6 +20,8 @@ Increments 1-4:
 - Integrations: scoped API keys (`X-API-Key`) with per-key rate limiting, and `Idempotency-Key` support on order creation
 - Audit log: who (user or API key) changed what, readable by the `ORG_ADMIN`
 
+Connecting another application? See the [integration guide](docs/integration-guide.md).
+
 ## Stack
 
 - **Runtime**: Java 21, Spring Boot 3.3.3
@@ -53,6 +55,16 @@ Copy `.env.example` to `.env` if you want local overrides. Do not commit real se
 ```bash
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
+
+### Run everything in Docker
+
+To run the API itself in a container alongside PostgreSQL and Mailpit, without a local JDK:
+
+```bash
+docker compose --profile app up -d --build
+```
+
+The API is then on `http://localhost:8080` with the `dev,seed` profiles (demo data, Mailpit email). Set `APP_PORT` or `DB_PORT` if 8080 or 5432 are already in use, and `APP_PROFILES=prod` with the required secrets in `.env` for a real deployment. The same `Dockerfile` builds the image for any host: `docker build -t opus-api .`
 
 ### Demo data
 
@@ -95,6 +107,8 @@ Import `postman/opus.postman_collection.json`. Run **Auth > Login** first: it st
 ```
 
 Integration tests use the `it` profile and require Docker; they are skipped when Docker is not running.
+
+GitHub Actions (`.github/workflows/ci.yml`) runs `./mvnw verify` and builds the Docker image on every push to `main` and every pull request.
 
 ## Auth APIs (`/api/v1`)
 
