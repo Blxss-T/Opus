@@ -486,6 +486,58 @@
       ]
     },
     {
+      "name": "Organization",
+      "item": [
+        {
+          "name": "Get organization",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/organization",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "organization"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Rename organization",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/organization",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "organization"
+              ]
+            },
+            "description": "ORG_ADMIN only. The slug does not change.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Opus Demo Trading Ltd\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Users",
       "item": [
         {

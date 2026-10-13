@@ -136,6 +136,15 @@ All list endpoints share a consistent contract:
 
 Default sorts: customers/suppliers/products by `name` asc, employees by name, orders and movements by `createdAt` desc.
 
+## Organization APIs
+
+The organization is always the caller's own, taken from the JWT.
+
+| Method | Path | Roles |
+| --- | --- | --- |
+| GET | `/organization` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
+| PUT | `/organization` | `ORG_ADMIN` (renames it; the slug does not change) |
+
 ## User APIs
 
 Organization is taken from the JWT, never from the client body. The `ORG_ADMIN` creates accounts with an initial password; the new user signs in with `/auth/login` and can change it via `/auth/password/change`. Only `MANAGER` and `EMPLOYEE` can be assigned, and the `ORG_ADMIN` account cannot be demoted or deactivated. Emails are unique across all organizations. Role changes and deactivation take effect immediately, including for access tokens already issued.
