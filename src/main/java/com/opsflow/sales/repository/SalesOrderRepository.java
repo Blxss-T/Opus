@@ -14,4 +14,6 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, UUID>, J
     Optional<SalesOrder> findByIdAndOrganizationId(UUID id, UUID organizationId);
 
     long countByOrganizationId(UUID organizationId);
+
+    Optional<SalesOrder> findByOrganizationIdAndIdempotencyKey(UUID organizationId, String idempotencyKey);
 }
