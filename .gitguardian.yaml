@@ -1,0 +1,9 @@
+version: 2
+secret:
+  ignored-paths:
+    # Known dev-only JWT placeholder, hardcoded intentionally so
+    # ProductionSecretsValidator has a fixed value to blocklist, and so
+    # tests can assert it is rejected in production. Not a live credential.
+    - "src/test/java/com/opsflow/common/config/ProductionSecretsValidatorTest.java"
+    - "src/test/java/com/opsflow/auth/security/JwtServiceTest.java"
+    - "src/test/java/com/opsflow/auth/service/AuthServiceTest.java"
