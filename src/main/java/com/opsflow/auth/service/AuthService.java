@@ -111,7 +111,7 @@ public class AuthService {
         }
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         String email = request.email().toLowerCase(Locale.ROOT).trim();
         User user = userRepository.findByEmail(email)
