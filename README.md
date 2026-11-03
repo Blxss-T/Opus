@@ -17,6 +17,10 @@ Increments 1-4:
 - Sales Orders: customer sales with lifecycle `DRAFT -> CONFIRMED -> FULFILLED/CANCELLED`, automatic inventory depletion on fulfillment (Flyway V10)
 - Reporting & Dashboard: read-only aggregated metrics (revenue, spend, low-stock alerts, top customers/suppliers, category breakdowns, daily/monthly sales trends) with tenant isolation
 - Sessions & Hardening: refresh token rotation with reuse detection, logout, password change/reset (OTP-based), password-changed session invalidation, and IP rate limiting on public auth endpoints
+- Integrations: scoped API keys (`X-API-Key`) with per-key rate limiting, and `Idempotency-Key` support on order creation
+- Audit log: who (user or API key) changed what, readable by the `ORG_ADMIN`
+
+Connecting another application? See the [integration guide](docs/integration-guide.md).
 
 ## Stack
 
@@ -52,11 +56,43 @@ Copy `.env.example` to `.env` if you want local overrides. Do not commit real se
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
+### Run everything in Docker
+
+To run the API itself in a container alongside PostgreSQL and Mailpit, without a local JDK:
+
+```bash
+docker compose --profile app up -d --build
+```
+
+The API is then on `http://localhost:8080` with the `dev,seed` profiles (demo data, Mailpit email). Set `APP_PORT` or `DB_PORT` if 8080 or 5432 are already in use, and `APP_PROFILES=prod` with the required secrets in `.env` for a real deployment. The same `Dockerfile` builds the image for any host: `docker build -t opus-api .`
+
+### Demo data
+
+To start with a populated database, add the `seed` profile:
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev,seed
+```
+
+On first start this creates the organization "Opus Demo Trading" with employees, customers, suppliers, products (two below their reorder level), and purchase and sales orders in every status, so each endpoint and report returns data. It is skipped on later starts and never runs in the `prod` profile.
+
+| Role | Email | Password |
+| --- | --- | --- |
+| `ORG_ADMIN` | `admin@opus-demo.test` | `DemoPass123!` |
+| `MANAGER` | `manager@opus-demo.test` | `DemoPass123!` |
+| `EMPLOYEE` | `employee@opus-demo.test` | `DemoPass123!` |
+
+Override the password with `OPUS_SEED_PASSWORD`.
+
 ### Verify
 
 - Health: `http://localhost:8080/api/v1/health`
 - Actuator: `http://localhost:8080/actuator/health`
 - Swagger: `http://localhost:8080/swagger-ui.html`
+
+### Postman
+
+Import `postman/opus.postman_collection.json`. Run **Auth > Login** first: it stores the access and refresh tokens as collection variables and every other request sends them automatically. Create requests store the new record's id for the requests that follow. The collection defaults to `http://localhost:8080/api/v1` and the demo admin account; change `baseUrl`, `email` and `password` under the collection's Variables tab.
 
 ### Tests
 
@@ -64,7 +100,15 @@ Copy `.env.example` to `.env` if you want local overrides. Do not commit real se
 ./mvnw test
 ```
 
-PostgreSQL Testcontainers tests use the `it` profile and require Docker.
+`./mvnw test` runs the unit and controller tests on in-memory H2. To also run the PostgreSQL integration tests (`*IT` classes, which apply the real Flyway migrations in a Testcontainers database), use:
+
+```bash
+./mvnw verify
+```
+
+Integration tests use the `it` profile and require Docker; they are skipped when Docker is not running.
+
+GitHub Actions (`.github/workflows/ci.yml`) runs `./mvnw verify` and builds the Docker image on every push to `main` and every pull request.
 
 ## Auth APIs (`/api/v1`)
 
@@ -82,7 +126,7 @@ PostgreSQL Testcontainers tests use the `it` profile and require Docker.
 | POST | `/auth/password/forgot` | public | Send password reset code; response never reveals account existence |
 | POST | `/auth/password/reset` | public | Reset password with emailed code; revokes all sessions |
 
-Google mock tokens (`mock-google-token:email:First:Last`) work only when `security.google.allow-mock-tokens=true` (dev/test). Production must set `GOOGLE_CLIENT_ID` and a unique `JWT_SECRET`.
+Google mock tokens (`mock-google-token:email:First:Last`) work only when `security.google.allow-mock-tokens=true` (dev/test). Production must set a unique `JWT_SECRET` (32+ characters) and `OTP_PEPPER` (16+ characters); the app refuses to start in the `prod` profile if either is missing or still a committed dev/example value. Set `GOOGLE_CLIENT_ID` to enable Google sign-in; without it every Google token is rejected.
 
 ## Pagination, filtering & sorting
 
@@ -106,6 +150,15 @@ All list endpoints share a consistent contract:
 | GET `/sales-orders` | `status` (DRAFT, CONFIRMED, FULFILLED, CANCELLED) |
 
 Default sorts: customers/suppliers/products by `name` asc, employees by name, orders and movements by `createdAt` desc.
+
+## Organization APIs
+
+The organization is always the caller's own, taken from the JWT.
+
+| Method | Path | Roles |
+| --- | --- | --- |
+| GET | `/organization` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
+| PUT | `/organization` | `ORG_ADMIN` (renames it; the slug does not change) |
 
 ## User APIs
 
@@ -180,6 +233,7 @@ Organization is taken from the JWT, never from the client body. PO numbers are g
 | POST | `/purchase-orders` | `ORG_ADMIN`, `MANAGER` |
 | GET | `/purchase-orders` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
 | GET | `/purchase-orders/{id}` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
+| PUT | `/purchase-orders/{id}` | `ORG_ADMIN`, `MANAGER` (replaces a `DRAFT` order's supplier, notes, date and items) |
 | PATCH | `/purchase-orders/{id}/status` | `ORG_ADMIN`, `MANAGER` |
 
 ## Sales Order APIs
@@ -191,6 +245,7 @@ Organization is taken from the JWT, never from the client body. SO numbers are g
 | POST | `/sales-orders` | `ORG_ADMIN`, `MANAGER` |
 | GET | `/sales-orders` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
 | GET | `/sales-orders/{id}` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` |
+| PUT | `/sales-orders/{id}` | `ORG_ADMIN`, `MANAGER` (replaces a `DRAFT` order's customer, notes, date and items) |
 | PATCH | `/sales-orders/{id}/status` | `ORG_ADMIN`, `MANAGER` |
 
 ## Reporting APIs
@@ -208,9 +263,44 @@ All metrics are scoped to the caller's organization. Revenue counts `FULFILLED` 
 | GET | `/reports/sales/daily` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` | Fulfilled sales per day, last 30 days |
 | GET | `/reports/sales/monthly-trend` | `ORG_ADMIN`, `MANAGER`, `EMPLOYEE` | Fulfilled sales per month |
 
+## API keys (access for other applications)
+
+Another application calls the API with an API key instead of a person's login. The `ORG_ADMIN` creates the key while signed in; the application then sends it on every request:
+
+```bash
+curl -H "X-API-Key: opk_..." http://localhost:8080/api/v1/products
+```
+
+| Method | Path | Roles | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api-keys/scopes` | `ORG_ADMIN` | Scopes that can be granted |
+| POST | `/api-keys` | `ORG_ADMIN` | Create a key (`name`, `scopes[]`, optional `expiresAt`); the raw key is returned once in `data.key` |
+| GET | `/api-keys` | `ORG_ADMIN` | List keys (prefix only), including revoked and expired ones |
+| DELETE | `/api-keys/{id}` | `ORG_ADMIN` | Revoke a key immediately |
+
+- **Scopes.** `products`, `customers`, `suppliers`, `purchase-orders` and `sales-orders` each have `:read` and `:write`; `employees` and `reports` have `:read` only. `GET` requests need the read scope, everything else the write scope, and a write scope includes read. A request outside the key's scopes returns `403`.
+- **Limits of a key.** A key only sees its own organization and cannot reach the user, auth or API key endpoints, so it cannot create users or other keys.
+- **Storage.** Only a SHA-256 hash and a short display prefix are stored. A lost key cannot be recovered; revoke it and create a new one.
+- **Rate limit.** Each key gets 120 requests per minute across all endpoints (`API_KEY_RATE_LIMIT`, `API_KEY_RATE_LIMIT_WINDOW_SECONDS`), then `429` with `Retry-After`. In-memory, single node.
+- **Attribution.** Orders and stock movements written by a key are recorded as `api-key:<name>`.
+
+## Idempotent order creation
+
+`POST /purchase-orders` and `POST /sales-orders` accept an optional `Idempotency-Key` header (up to 100 characters, for example a UUID). If a request times out, retry it with the same key: the API returns the order created the first time with `200` and `Idempotency-Replayed: true` instead of creating a duplicate. Keys are scoped to the organization, and the first request's body wins; the body of a replay is not compared.
+
+## Audit log
+
+Every successful change made through the API (any non-`GET` request that returns `2xx`) by a signed-in user or an API key is recorded: who did it, the method and path, the resource type and id, the status code and the client IP. Reads, failed requests and unauthenticated calls such as login are not recorded. Request bodies are not stored.
+
+| Method | Path | Roles | Filters |
+| --- | --- | --- | --- |
+| GET | `/audit-log` | `ORG_ADMIN` | `actor` (email or `api-key:<name>`, contains), `actorType` (USER, API_KEY), `resourceType` (e.g. `products`), `resourceId` |
+
+Newest first, with the usual `page`, `size` and `sort`.
+
 ## Sessions
 
-- Access tokens are short-lived JWTs; refresh tokens are random 256-bit values stored only as SHA-256 hashes (`refresh_tokens` table, 7-day TTL by default via `REFRESH_TOKEN_TTL` minutes).
+- Access tokens are short-lived JWTs (15 minutes by default, `JWT_EXPIRATION_MS` in milliseconds); clients call `/auth/refresh` to get a new one. Refresh tokens are random 256-bit values stored only as SHA-256 hashes (`refresh_tokens` table, 7-day TTL by default via `REFRESH_TOKEN_TTL` minutes).
 - Refresh tokens are single use: each refresh returns a new token and revokes the old one. Presenting a revoked, expired, or already-rotated token revokes **all** sessions for that user (stolen-token mitigation).
 - Password change/reset stamps `users.password_changed_at`; access tokens issued before that instant are rejected by the JWT filter, and all refresh sessions are revoked.
 
@@ -226,4 +316,4 @@ Browser frontends on another origin must be listed in `CORS_ALLOWED_ORIGINS` (co
 
 ## Environment
 
-See `.env.example` for `DB_*`, `JWT_SECRET`, `REFRESH_TOKEN_TTL`, `RATE_LIMIT_*`, `CORS_ALLOWED_ORIGINS`, `GOOGLE_CLIENT_ID`, `OTP_PEPPER`, and `MAIL_*`.
+See `.env.example` for `DB_*`, `JWT_SECRET`, `JWT_EXPIRATION_MS`, `REFRESH_TOKEN_TTL`, `RATE_LIMIT_*`, `CORS_ALLOWED_ORIGINS`, `GOOGLE_CLIENT_ID`, `OTP_PEPPER`, `API_KEY_RATE_LIMIT*`, and `MAIL_*`.

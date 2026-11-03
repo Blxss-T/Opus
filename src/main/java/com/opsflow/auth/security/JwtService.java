@@ -23,7 +23,7 @@ public class JwtService {
 
     public JwtService(
         @Value("${security.jwt.secret-key}") String secret,
-        @Value("${security.jwt.expiration-ms:86400000}") long expirationMs
+        @Value("${security.jwt.expiration-ms:900000}") long expirationMs
     ) {
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 32) {

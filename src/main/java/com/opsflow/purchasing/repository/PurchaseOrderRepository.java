@@ -14,4 +14,6 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, UU
     Optional<PurchaseOrder> findByIdAndOrganizationId(UUID id, UUID organizationId);
 
     long countByOrganizationId(UUID organizationId);
+
+    Optional<PurchaseOrder> findByOrganizationIdAndIdempotencyKey(UUID organizationId, String idempotencyKey);
 }

@@ -4,6 +4,7 @@ import com.opsflow.auth.security.UserPrincipal;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.common.exception.ErrorCode;
 import com.opsflow.common.exception.ResourceNotFoundException;
+import com.opsflow.common.idempotency.IdempotentResult;
 import com.opsflow.common.jpa.FilterSpecs;
 import com.opsflow.inventory.domain.MovementType;
 import com.opsflow.inventory.domain.Product;
@@ -31,6 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -58,6 +61,16 @@ public class PurchaseOrderService {
 
     @Transactional
     public PurchaseOrderResponse createPurchaseOrder(UserPrincipal principal, CreatePurchaseOrderRequest request) {
+        return createPurchaseOrder(principal, request, null).value();
+    }
+
+    /**
+     * Creates the order, or returns the order already created with the same
+     * idempotency key so a client can safely retry a request whose response
+     * it never received.
+     */
+    @Transactional
+    public IdempotentResult<PurchaseOrderResponse> createPurchaseOrder(UserPrincipal principal, CreatePurchaseOrderRequest request, String idempotencyKey) {
         UUID organizationId = principal.getOrganizationId();
 
         Supplier supplier = supplierRepository.findByIdAndOrganizationIdAndActiveTrue(request.supplierId(), organizationId)
@@ -67,6 +80,15 @@ public class PurchaseOrderService {
         // creates cannot both read the same count.
         Organization organization = organizationRepository.findByIdForUpdate(organizationId)
             .orElseThrow(() -> new ResourceNotFoundException("Organization", "id", organizationId));
+
+        // Checked under the organization lock, so two concurrent requests with
+        // the same key cannot both create an order.
+        if (idempotencyKey != null) {
+            Optional<PurchaseOrder> existing = purchaseOrderRepository.findByOrganizationIdAndIdempotencyKey(organizationId, idempotencyKey);
+            if (existing.isPresent()) {
+                return IdempotentResult.replayed(PurchaseOrderResponse.fromEntity(existing.get()));
+            }
+        }
 
         long count = purchaseOrderRepository.countByOrganizationId(organizationId);
         String poNumber = String.format("PO-%d-%04d", LocalDate.now().getYear(), count + 1);
@@ -83,29 +105,42 @@ public class PurchaseOrderService {
             principal.getUsername()
         );
 
-        BigDecimal totalAmount = BigDecimal.ZERO;
-
-        for (PurchaseOrderItemRequest itemReq : request.items()) {
-            Product product = productRepository.findByIdAndOrganizationIdAndActiveTrue(itemReq.productId(), organizationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product", "id", itemReq.productId()));
-
-            BigDecimal subtotal = itemReq.unitCost().multiply(BigDecimal.valueOf(itemReq.quantity()));
-            totalAmount = totalAmount.add(subtotal);
-
-            PurchaseOrderItem item = new PurchaseOrderItem(
-                po,
-                product,
-                itemReq.quantity(),
-                itemReq.unitCost(),
-                subtotal
-            );
-            po.addItem(item);
-        }
-
-        po.setTotalAmount(totalAmount);
+        po.setTotalAmount(addItems(po, request.items(), organizationId));
+        po.setIdempotencyKey(idempotencyKey);
         PurchaseOrder savedPo = purchaseOrderRepository.save(po);
 
-        return PurchaseOrderResponse.fromEntity(savedPo);
+        return IdempotentResult.created(PurchaseOrderResponse.fromEntity(savedPo));
+    }
+
+    /**
+     * Replaces the supplier, notes, delivery date and line items of a draft.
+     * Once an order leaves DRAFT its contents are fixed.
+     */
+    @Transactional
+    public PurchaseOrderResponse updatePurchaseOrder(UserPrincipal principal, UUID poId, CreatePurchaseOrderRequest request) {
+        UUID organizationId = principal.getOrganizationId();
+        PurchaseOrder po = findPurchaseOrderForTenant(organizationId, poId);
+
+        if (po.getStatus() != PurchaseOrderStatus.DRAFT) {
+            throw new BusinessException(
+                ErrorCode.BUSINESS_RULE_VIOLATION,
+                String.format("Only DRAFT purchase orders can be edited; this one is %s", po.getStatus())
+            );
+        }
+
+        Supplier supplier = supplierRepository.findByIdAndOrganizationIdAndActiveTrue(request.supplierId(), organizationId)
+            .orElseThrow(() -> new ResourceNotFoundException("Supplier", "id", request.supplierId()));
+
+        po.setSupplier(supplier);
+        po.setNotes(request.notes());
+        po.setExpectedDeliveryDate(request.expectedDeliveryDate());
+
+        // Flushed so the old lines are deleted before the replacements are inserted.
+        po.getItems().clear();
+        purchaseOrderRepository.flush();
+        po.setTotalAmount(addItems(po, request.items(), organizationId));
+
+        return PurchaseOrderResponse.fromEntity(purchaseOrderRepository.save(po));
     }
 
     @Transactional
@@ -176,5 +211,28 @@ public class PurchaseOrderService {
     private PurchaseOrder findPurchaseOrderForTenant(UUID organizationId, UUID poId) {
         return purchaseOrderRepository.findByIdAndOrganizationId(poId, organizationId)
             .orElseThrow(() -> new ResourceNotFoundException("PurchaseOrder", "id", poId));
+    }
+
+    /** Adds the requested lines to the order and returns their total. */
+    private BigDecimal addItems(PurchaseOrder po, List<PurchaseOrderItemRequest> items, UUID organizationId) {
+        BigDecimal totalAmount = BigDecimal.ZERO;
+
+        for (PurchaseOrderItemRequest itemReq : items) {
+            Product product = productRepository.findByIdAndOrganizationIdAndActiveTrue(itemReq.productId(), organizationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Product", "id", itemReq.productId()));
+
+            BigDecimal subtotal = itemReq.unitCost().multiply(BigDecimal.valueOf(itemReq.quantity()));
+            totalAmount = totalAmount.add(subtotal);
+
+            po.addItem(new PurchaseOrderItem(
+                po,
+                product,
+                itemReq.quantity(),
+                itemReq.unitCost(),
+                subtotal
+            ));
+        }
+
+        return totalAmount;
     }
 }

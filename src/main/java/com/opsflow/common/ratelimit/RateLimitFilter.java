@@ -17,11 +17,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Fixed-window in-memory rate limiter for the public authentication endpoints
@@ -44,14 +40,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
         "/api/v1/auth/password/reset"
     );
 
-    private static final int MAX_TRACKED_KEYS = 5000;
-
-    private final Map<String, Deque<Instant>> windows = new ConcurrentHashMap<>();
+    private final SlidingWindowRateLimiter limiter;
     private final ObjectMapper objectMapper;
     private final boolean enabled;
-    private final int limit;
     private final long windowSeconds;
-    private final Clock clock;
 
     @org.springframework.beans.factory.annotation.Autowired
     public RateLimitFilter(
@@ -72,9 +64,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
     ) {
         this.objectMapper = objectMapper;
         this.enabled = enabled;
-        this.limit = limit;
         this.windowSeconds = windowSeconds;
-        this.clock = clock;
+        this.limiter = new SlidingWindowRateLimiter(limit, windowSeconds, clock);
     }
 
     @Override
@@ -101,35 +92,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     boolean tryAcquire(String key) {
-        boolean[] allowed = new boolean[1];
-        windows.compute(key, (k, deque) -> {
-            Instant now = clock.instant();
-            Deque<Instant> window = deque != null ? deque : new ArrayDeque<>();
-            purgeExpired(window, now);
-
-            allowed[0] = window.size() < limit;
-            if (allowed[0]) {
-                window.addLast(now);
-            }
-            return window.isEmpty() ? null : window;
-        });
-
-        if (windows.size() > MAX_TRACKED_KEYS) {
-            Instant now = clock.instant();
-            windows.entrySet().removeIf(entry -> {
-                Deque<Instant> deque = entry.getValue();
-                return deque == null || deque.isEmpty()
-                    || deque.peekLast().plusSeconds(windowSeconds).isBefore(now);
-            });
-        }
-
-        return allowed[0];
-    }
-
-    private void purgeExpired(Deque<Instant> window, Instant now) {
-        while (!window.isEmpty() && window.peekFirst().plusSeconds(windowSeconds).isBefore(now)) {
-            window.pollFirst();
-        }
+        return limiter.tryAcquire(key);
     }
 
     /**

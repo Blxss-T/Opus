@@ -1,0 +1,10 @@
+.git
+.github
+.idea
+.vscode
+.freebuff
+target
+postman
+*.md
+.env
+*.log

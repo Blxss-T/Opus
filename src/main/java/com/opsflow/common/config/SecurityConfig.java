@@ -1,8 +1,10 @@
 package com.opsflow.common.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.opsflow.apikeys.security.ApiKeyAuthenticationFilter;
 import com.opsflow.auth.security.JwtAuthenticationFilter;
 import com.opsflow.common.exception.ErrorCode;
+import com.opsflow.common.idempotency.IdempotencyKeys;
 import com.opsflow.common.response.ApiResponse;
 import com.opsflow.common.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletResponse;
@@ -36,15 +38,18 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
     private final ObjectMapper objectMapper;
     private final List<String> corsAllowedOrigins;
 
     public SecurityConfig(
         JwtAuthenticationFilter jwtAuthenticationFilter,
+        ApiKeyAuthenticationFilter apiKeyAuthenticationFilter,
         ObjectMapper objectMapper,
         @Value("${security.cors.allowed-origins:}") List<String> corsAllowedOrigins
     ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.apiKeyAuthenticationFilter = apiKeyAuthenticationFilter;
         this.objectMapper = objectMapper;
         this.corsAllowedOrigins = corsAllowedOrigins;
     }
@@ -86,8 +91,8 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(corsAllowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
-        configuration.setExposedHeaders(List.of("Retry-After"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", ApiKeyAuthenticationFilter.HEADER, IdempotencyKeys.HEADER));
+        configuration.setExposedHeaders(List.of("Retry-After", IdempotencyKeys.REPLAYED_HEADER));
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
@@ -124,7 +129,8 @@ public class SecurityConfig {
                 ).permitAll()
                 .anyRequest().authenticated()
             )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(apiKeyAuthenticationFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

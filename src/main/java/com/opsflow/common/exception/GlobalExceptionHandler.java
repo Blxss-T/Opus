@@ -1,5 +1,6 @@
 package com.opsflow.common.exception;
 
+import com.opsflow.common.mail.EmailDeliveryException;
 import com.opsflow.common.response.ApiResponse;
 import com.opsflow.common.response.ErrorResponse;
 import com.opsflow.common.response.FieldErrorDetail;
@@ -10,6 +11,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -109,6 +111,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.error(errorResponse));
     }
 
+    @ExceptionHandler(EmailDeliveryException.class)
+    public ResponseEntity<ApiResponse<Void>> handleEmailDelivery(EmailDeliveryException ex, HttpServletRequest request) {
+        log.error("Email delivery failed at path '{}': ", request.getRequestURI(), ex);
+        ErrorResponse errorResponse = ErrorResponse.builder()
+            .status(HttpStatus.SERVICE_UNAVAILABLE.value())
+            .error(ErrorCode.SERVICE_UNAVAILABLE.getCode())
+            .message("The email could not be sent. Please try again later.")
+            .path(request.getRequestURI())
+            .timestamp(Instant.now())
+            .build();
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiResponse.error(errorResponse));
+    }
+
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
         log.warn("Parameter type mismatch at path '{}': {}", request.getRequestURI(), ex.getMessage());
@@ -116,6 +131,19 @@ public class GlobalExceptionHandler {
             .status(HttpStatus.BAD_REQUEST.value())
             .error(ErrorCode.VALIDATION_ERROR.getCode())
             .message(String.format("Invalid value '%s' for parameter '%s'", ex.getValue(), ex.getName()))
+            .path(request.getRequestURI())
+            .timestamp(Instant.now())
+            .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(errorResponse));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnreadableBody(HttpMessageNotReadableException ex, HttpServletRequest request) {
+        log.warn("Unreadable request body at path '{}': {}", request.getRequestURI(), ex.getMessage());
+        ErrorResponse errorResponse = ErrorResponse.builder()
+            .status(HttpStatus.BAD_REQUEST.value())
+            .error(ErrorCode.VALIDATION_ERROR.getCode())
+            .message("Request body is missing, malformed, or contains a value of the wrong type")
             .path(request.getRequestURI())
             .timestamp(Instant.now())
             .build();
