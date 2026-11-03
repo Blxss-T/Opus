@@ -305,6 +305,41 @@ a {
   font-weight: 600;
 }
 
+.list-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.list-toolbar__search {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.list-toolbar__search .form-field {
+  margin-bottom: 0;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.pager__status {
+  color: var(--text);
+}
+
+.adjust-stock-form {
+  max-width: 400px;
+}
+
 .empty-state {
   color: var(--text);
   padding: 24px;

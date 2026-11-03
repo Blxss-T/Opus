@@ -9,9 +9,9 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
   { label: "Dashboard", path: "/dashboard", requiredRoles: ["ORG_ADMIN", "MANAGER", "EMPLOYEE"], enabled: true },
-  { label: "Products", path: "/products", requiredRoles: ["ORG_ADMIN", "MANAGER", "EMPLOYEE"], enabled: false },
-  { label: "Customers", path: "/customers", requiredRoles: ["ORG_ADMIN", "MANAGER", "EMPLOYEE"], enabled: false },
-  { label: "Suppliers", path: "/suppliers", requiredRoles: ["ORG_ADMIN", "MANAGER", "EMPLOYEE"], enabled: false },
+  { label: "Products", path: "/products", requiredRoles: ["ORG_ADMIN", "MANAGER", "EMPLOYEE"], enabled: true },
+  { label: "Customers", path: "/customers", requiredRoles: ["ORG_ADMIN", "MANAGER", "EMPLOYEE"], enabled: true },
+  { label: "Suppliers", path: "/suppliers", requiredRoles: ["ORG_ADMIN", "MANAGER", "EMPLOYEE"], enabled: true },
   { label: "Purchase orders", path: "/purchasing", requiredRoles: ["ORG_ADMIN", "MANAGER", "EMPLOYEE"], enabled: false },
   { label: "Sales orders", path: "/sales", requiredRoles: ["ORG_ADMIN", "MANAGER", "EMPLOYEE"], enabled: false },
   { label: "Employees", path: "/employees", requiredRoles: ["ORG_ADMIN", "MANAGER"], enabled: false },
