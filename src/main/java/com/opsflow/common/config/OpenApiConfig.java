@@ -61,7 +61,8 @@ public class OpenApiConfig {
 
         **Authentication.** Call `POST /api/v1/auth/login` (or `/auth/register`), copy `data.accessToken`, \
         click **Authorize** and paste it. Access tokens are short-lived; exchange `data.refreshToken` at \
-        `POST /api/v1/auth/refresh` for a new pair.
+        `POST /api/v1/auth/refresh` for a new pair. Sensitive actions require `POST /api/v1/auth/step-up` \
+        (current password) so the token carries `reauthExp`.
 
         **Other applications.** An `ORG_ADMIN` creates an API key at `POST /api/v1/api-keys` and the         application sends it as the `X-API-Key` header instead of a token. A key is limited to its scopes         (`products:read`, `sales-orders:write`, ...; `:write` includes `:read`) and cannot reach the         user, auth or API key endpoints.
 

@@ -1,6 +1,7 @@
 package com.opsflow.apikeys.domain;
 
 import com.opsflow.common.domain.BaseEntity;
+import com.opsflow.common.persistence.DbSchemas;
 import com.opsflow.organizations.domain.Organization;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -17,7 +18,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Entity
-@Table(name = "api_keys")
+@Table(schema = DbSchemas.OPS, name = "api_keys")
 public class ApiKey extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

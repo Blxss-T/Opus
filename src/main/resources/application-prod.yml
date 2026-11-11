@@ -3,6 +3,8 @@ security:
     secret-key: ${JWT_SECRET}
   google:
     allow-mock-tokens: false
+  rate-limit:
+    fail-closed: ${RATE_LIMIT_FAIL_CLOSED:true}
 
 opus:
   mail:

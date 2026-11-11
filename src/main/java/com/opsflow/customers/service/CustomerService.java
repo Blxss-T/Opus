@@ -1,6 +1,7 @@
 package com.opsflow.customers.service;
 
 import com.opsflow.auth.security.UserPrincipal;
+import com.opsflow.common.cache.OrgCacheService;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.common.exception.ErrorCode;
 import com.opsflow.common.exception.ResourceNotFoundException;
@@ -27,13 +28,16 @@ public class CustomerService {
 
     private final CustomerRepository customerRepository;
     private final OrganizationRepository organizationRepository;
+    private final OrgCacheService orgCacheService;
 
     public CustomerService(
         CustomerRepository customerRepository,
-        OrganizationRepository organizationRepository
+        OrganizationRepository organizationRepository,
+        OrgCacheService orgCacheService
     ) {
         this.customerRepository = customerRepository;
         this.organizationRepository = organizationRepository;
+        this.orgCacheService = orgCacheService;
     }
 
     @Transactional
@@ -61,6 +65,7 @@ public class CustomerService {
         );
 
         Customer saved = customerRepository.save(customer);
+        evictCache(organizationId);
         return CustomerResponse.fromEntity(saved);
     }
 
@@ -101,6 +106,7 @@ public class CustomerService {
         customer.setNotes(trimToNull(request.notes()));
 
         Customer saved = customerRepository.save(customer);
+        evictCache(organizationId);
         return CustomerResponse.fromEntity(saved);
     }
 
@@ -109,7 +115,14 @@ public class CustomerService {
         Customer customer = findCustomerForTenant(principal.getOrganizationId(), customerId);
         customer.setActive(false);
         Customer saved = customerRepository.save(customer);
+        evictCache(principal.getOrganizationId());
         return CustomerResponse.fromEntity(saved);
+    }
+
+    private void evictCache(UUID organizationId) {
+        if (orgCacheService != null) {
+            orgCacheService.evictOrganization(organizationId);
+        }
     }
 
     private Customer findCustomerForTenant(UUID organizationId, UUID customerId) {

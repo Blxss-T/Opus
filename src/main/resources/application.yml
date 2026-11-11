@@ -22,15 +22,23 @@ spring:
         format_sql: true
         jdbc:
           time_zone: UTC
-  flyway:
-    enabled: true
-    baseline-on-migrate: true
-    locations: classpath:db/migration
+        hbm2ddl:
+          create_namespaces: true
   data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
     web:
       pageable:
         default-page-size: 20
         max-page-size: 100
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    user: ${DB_OWNER:${DB_USER:opus_user}}
+    password: ${DB_OWNER_PASSWORD:${DB_PASSWORD:opus_password}}
   mail:
     host: ${MAIL_HOST:}
     port: ${MAIL_PORT:587}
@@ -73,6 +81,13 @@ opus:
     # true: a missing mail server or failed delivery is an error (prod default).
     # false: fall back to logging so local development works without SMTP.
     fail-on-error: ${MAIL_FAIL_ON_ERROR:false}
+  cache:
+    enabled: ${CACHE_ENABLED:true}
+    ttl-seconds: ${CACHE_TTL_SECONDS:45}
+  jobs:
+    enabled: ${JOBS_ENABLED:true}
+    reporting-refresh-ms: ${REPORTING_REFRESH_MS:300000}
+    otp-cleanup-ms: ${OTP_CLEANUP_MS:3600000}
 
 security:
   jwt:
@@ -84,6 +99,11 @@ security:
     enabled: ${RATE_LIMIT_ENABLED:true}
     limit: ${RATE_LIMIT_LIMIT:10}     # requests per window per IP per endpoint
     window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
+    authenticated-limit: ${RATE_LIMIT_AUTHENTICATED_LIMIT:120}
+    fail-closed: ${RATE_LIMIT_FAIL_CLOSED:false}
+  step-up:
+    enabled: ${STEP_UP_ENABLED:true}
+    ttl-seconds: ${STEP_UP_TTL_SECONDS:300}
   api-keys:
     rate-limit:
       enabled: ${API_KEY_RATE_LIMIT_ENABLED:true}

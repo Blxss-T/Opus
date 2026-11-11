@@ -1,6 +1,7 @@
 package com.opsflow.users.service;
 
 import com.opsflow.auth.dto.UserResponse;
+import com.opsflow.auth.security.StepUpGuard;
 import com.opsflow.auth.security.UserPrincipal;
 import com.opsflow.auth.service.AuthService;
 import com.opsflow.auth.session.service.RefreshTokenService;
@@ -37,17 +38,20 @@ public class UserService {
     private final OrganizationRepository organizationRepository;
     private final AuthService authService;
     private final RefreshTokenService refreshTokenService;
+    private final StepUpGuard stepUpGuard;
 
     public UserService(
         UserRepository userRepository,
         OrganizationRepository organizationRepository,
         AuthService authService,
-        RefreshTokenService refreshTokenService
+        RefreshTokenService refreshTokenService,
+        StepUpGuard stepUpGuard
     ) {
         this.userRepository = userRepository;
         this.organizationRepository = organizationRepository;
         this.authService = authService;
         this.refreshTokenService = refreshTokenService;
+        this.stepUpGuard = stepUpGuard;
     }
 
     @Transactional
@@ -102,6 +106,7 @@ public class UserService {
             user.setLastName(request.lastName().trim());
         }
         if (request.role() != null && request.role() != user.getRole()) {
+            requireStepUp(principal);
             requireNotOrgAdmin(user, "The ORG_ADMIN role cannot be changed");
             requireAssignableRole(request.role());
             user.setRole(request.role());
@@ -112,6 +117,7 @@ public class UserService {
 
     @Transactional
     public UserResponse deactivateUser(UserPrincipal principal, UUID userId) {
+        requireStepUp(principal);
         User user = findUserForTenant(principal.getOrganizationId(), userId);
         requireNotOrgAdmin(user, "The ORG_ADMIN account cannot be deactivated");
 
@@ -126,6 +132,12 @@ public class UserService {
         User user = findUserForTenant(principal.getOrganizationId(), userId);
         user.setActive(true);
         return UserResponse.fromEntity(userRepository.save(user));
+    }
+
+    private void requireStepUp(UserPrincipal principal) {
+        if (stepUpGuard != null) {
+            stepUpGuard.require(principal);
+        }
     }
 
     private void requireAssignableRole(Role role) {

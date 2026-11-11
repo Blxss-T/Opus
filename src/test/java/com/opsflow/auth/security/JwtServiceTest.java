@@ -39,6 +39,14 @@ class JwtServiceTest {
         assertEquals(testUser.getId(), jwtService.getUserIdFromToken(token));
         assertEquals(testOrg.getId(), jwtService.getOrganizationIdFromToken(token));
         assertEquals(Role.ORG_ADMIN, jwtService.getRoleFromToken(token));
+        assertNull(jwtService.getReauthExpFromToken(token));
+    }
+
+    @Test
+    void steppedUpTokenShouldCarryReauthExp() {
+        String token = jwtService.generateSteppedUpToken(testUser);
+        assertNotNull(jwtService.getReauthExpFromToken(token));
+        assertTrue(jwtService.getReauthExpFromToken(token).isAfter(java.time.Instant.now()));
     }
 
     @Test

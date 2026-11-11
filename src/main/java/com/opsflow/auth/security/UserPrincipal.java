@@ -6,6 +6,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -18,15 +19,32 @@ public class UserPrincipal implements UserDetails {
     private final String passwordHash;
     private final Role role;
     private final boolean active;
+    private final Instant reauthExpiresAt;
+    private final boolean apiKey;
     private final Collection<? extends GrantedAuthority> authorities;
 
     public UserPrincipal(UUID id, UUID organizationId, String email, String passwordHash, Role role, boolean active) {
+        this(id, organizationId, email, passwordHash, role, active, null, false);
+    }
+
+    public UserPrincipal(
+        UUID id,
+        UUID organizationId,
+        String email,
+        String passwordHash,
+        Role role,
+        boolean active,
+        Instant reauthExpiresAt,
+        boolean apiKey
+    ) {
         this.id = id;
         this.organizationId = organizationId;
         this.email = email;
         this.passwordHash = passwordHash;
         this.role = role;
         this.active = active;
+        this.reauthExpiresAt = reauthExpiresAt;
+        this.apiKey = apiKey;
         this.authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 
@@ -51,6 +69,14 @@ public class UserPrincipal implements UserDetails {
 
     public Role getRole() {
         return role;
+    }
+
+    public Instant getReauthExpiresAt() {
+        return reauthExpiresAt;
+    }
+
+    public boolean isApiKey() {
+        return apiKey;
     }
 
     @Override

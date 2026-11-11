@@ -15,21 +15,21 @@ import java.util.List;
 public class TestDatabaseCleaner {
 
     private static final List<String> TABLES_IN_DELETE_ORDER = List.of(
-        "audit_events",
-        "refresh_tokens",
-        "api_keys",
-        "sales_order_items",
-        "sales_orders",
-        "purchase_order_items",
-        "purchase_orders",
-        "inventory_movements",
-        "products",
-        "customers",
-        "suppliers",
-        "employees",
-        "otp_codes",
-        "users",
-        "organizations"
+        "ops.audit_events",
+        "identity.refresh_tokens",
+        "ops.api_keys",
+        "sales.sales_order_items",
+        "sales.sales_orders",
+        "purchasing.purchase_order_items",
+        "purchasing.purchase_orders",
+        "catalog.inventory_movements",
+        "catalog.products",
+        "sales.customers",
+        "purchasing.suppliers",
+        "identity.employees",
+        "identity.otp_codes",
+        "identity.users",
+        "identity.organizations"
     );
 
     private final JdbcTemplate jdbcTemplate;

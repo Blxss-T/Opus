@@ -10,6 +10,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import com.opsflow.common.persistence.DbSchemas;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
@@ -17,6 +18,7 @@ import java.time.LocalDate;
 
 @Entity
 @Table(
+    schema = DbSchemas.IDENTITY,
     name = "employees",
     uniqueConstraints = @UniqueConstraint(name = "uk_employees_org_email", columnNames = {"organization_id", "email"})
 )

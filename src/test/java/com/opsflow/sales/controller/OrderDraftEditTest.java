@@ -129,7 +129,7 @@ class OrderDraftEditTest {
             .andExpect(jsonPath("$.data.totalAmount").value(55.00));
 
         // The replaced line is gone rather than orphaned.
-        assertEquals(2, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sales_order_items", Integer.class));
+        assertEquals(2, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM sales.sales_order_items", Integer.class));
     }
 
     @Test
@@ -145,7 +145,7 @@ class OrderDraftEditTest {
             .andExpect(jsonPath("$.data.totalAmount").value(60.00))
             .andExpect(jsonPath("$.data.items", hasSize(1)));
 
-        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM purchase_order_items", Integer.class));
+        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM purchasing.purchase_order_items", Integer.class));
     }
 
     @Test

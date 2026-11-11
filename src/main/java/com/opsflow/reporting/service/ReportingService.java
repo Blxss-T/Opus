@@ -1,6 +1,8 @@
 package com.opsflow.reporting.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.opsflow.auth.security.UserPrincipal;
+import com.opsflow.common.cache.OrgCacheService;
 import com.opsflow.inventory.domain.MovementType;
 import com.opsflow.inventory.repository.ProductRepository;
 import com.opsflow.reporting.dto.CategorySalesResponse;
@@ -25,18 +27,32 @@ public class ReportingService {
     private static final int DEFAULT_TOP_LIMIT = 5;
     private static final int MAX_TOP_LIMIT = 25;
 
+    private static final TypeReference<List<LowStockProductResponse>> LOW_STOCK_TYPE = new TypeReference<>() {};
+
     private final ReportingRepository reportingRepository;
     private final ProductRepository productRepository;
+    private final OrgCacheService orgCacheService;
 
-    public ReportingService(ReportingRepository reportingRepository, ProductRepository productRepository) {
+    public ReportingService(
+        ReportingRepository reportingRepository,
+        ProductRepository productRepository,
+        OrgCacheService orgCacheService
+    ) {
         this.reportingRepository = reportingRepository;
         this.productRepository = productRepository;
+        this.orgCacheService = orgCacheService;
     }
 
     @Transactional(readOnly = true)
     public DashboardSummaryResponse getDashboardSummary(UserPrincipal principal) {
         UUID organizationId = principal.getOrganizationId();
+        if (orgCacheService == null) {
+            return loadDashboard(organizationId);
+        }
+        return orgCacheService.getOrLoad(organizationId, "dashboard", DashboardSummaryResponse.class, () -> loadDashboard(organizationId));
+    }
 
+    private DashboardSummaryResponse loadDashboard(UUID organizationId) {
         return new DashboardSummaryResponse(
             reportingRepository.countProducts(organizationId),
             reportingRepository.countLowStockProducts(organizationId),
@@ -86,9 +102,15 @@ public class ReportingService {
 
     @Transactional(readOnly = true)
     public List<LowStockProductResponse> getLowStockProducts(UserPrincipal principal) {
-        return productRepository.findByOrganizationIdAndLowStock(principal.getOrganizationId())
-            .stream()
-            .map(LowStockProductResponse::fromEntity)
-            .toList();
+        UUID organizationId = principal.getOrganizationId();
+        java.util.function.Supplier<List<LowStockProductResponse>> loader = () ->
+            productRepository.findByOrganizationIdAndLowStock(organizationId)
+                .stream()
+                .map(LowStockProductResponse::fromEntity)
+                .toList();
+        if (orgCacheService == null) {
+            return loader.get();
+        }
+        return orgCacheService.getOrLoad(organizationId, "low-stock", LOW_STOCK_TYPE, loader);
     }
 }

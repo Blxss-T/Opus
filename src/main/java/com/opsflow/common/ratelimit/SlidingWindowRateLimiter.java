@@ -8,37 +8,51 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * In-memory sliding-window limiter: at most {@code limit} acquisitions per
- * key in any {@code windowSeconds} span.
- *
- * Single-node only; replace with a Redis-backed implementation when the app
- * scales beyond one instance.
+ * In-memory sliding-window limiter used in tests and as a fallback when Redis
+ * is unavailable and fail-open is configured.
  */
-public class SlidingWindowRateLimiter {
+public class SlidingWindowRateLimiter implements RateLimiter {
 
     private static final int MAX_TRACKED_KEYS = 5000;
 
     private final Map<String, Deque<Instant>> windows = new ConcurrentHashMap<>();
-    private final int limit;
-    private final long windowSeconds;
     private final Clock clock;
 
-    public SlidingWindowRateLimiter(int limit, long windowSeconds) {
-        this(limit, windowSeconds, Clock.systemUTC());
+    public SlidingWindowRateLimiter() {
+        this(Clock.systemUTC());
     }
 
-    public SlidingWindowRateLimiter(int limit, long windowSeconds, Clock clock) {
-        this.limit = limit;
-        this.windowSeconds = windowSeconds;
+    public SlidingWindowRateLimiter(Clock clock) {
         this.clock = clock;
     }
 
+    /**
+     * @deprecated Per-instance limit/window; prefer {@link #tryAcquire(String, int, long)}.
+     */
+    @Deprecated
+    public SlidingWindowRateLimiter(int limit, long windowSeconds) {
+        this(Clock.systemUTC());
+    }
+
+    @Deprecated
+    public SlidingWindowRateLimiter(int limit, long windowSeconds, Clock clock) {
+        this(clock);
+    }
+
+    @Deprecated
     public boolean tryAcquire(String key) {
+        return tryAcquire(key, 10, 60);
+    }
+
+    @Override
+    public boolean tryAcquire(String key, int limit, long windowSeconds) {
         boolean[] allowed = new boolean[1];
         windows.compute(key, (k, deque) -> {
             Instant now = clock.instant();
             Deque<Instant> window = deque != null ? deque : new ArrayDeque<>();
-            purgeExpired(window, now);
+            while (!window.isEmpty() && window.peekFirst().plusSeconds(windowSeconds).isBefore(now)) {
+                window.pollFirst();
+            }
 
             allowed[0] = window.size() < limit;
             if (allowed[0]) {
@@ -57,11 +71,5 @@ public class SlidingWindowRateLimiter {
         }
 
         return allowed[0];
-    }
-
-    private void purgeExpired(Deque<Instant> window, Instant now) {
-        while (!window.isEmpty() && window.peekFirst().plusSeconds(windowSeconds).isBefore(now)) {
-            window.pollFirst();
-        }
     }
 }

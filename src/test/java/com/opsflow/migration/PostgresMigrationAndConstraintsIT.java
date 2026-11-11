@@ -1,5 +1,7 @@
 package com.opsflow.migration;
 
+import com.opsflow.common.tenancy.TenantContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
@@ -17,6 +19,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -56,38 +59,81 @@ public class PostgresMigrationAndConstraintsIT {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @AfterEach
+    void clearTenant() {
+        TenantContext.clear();
+    }
+
     @Test
     void shouldExecuteMigrationsAndEnforceSingleOrgAdminPartialUniqueIndex() {
         UUID orgId = UUID.randomUUID();
+        setOrg(orgId);
         jdbcTemplate.update(
-            "INSERT INTO organizations (id, name, slug, active, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())",
+            "INSERT INTO identity.organizations (id, name, slug, active, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())",
             orgId, "Acme Test Corp", "acme-" + orgId, true
         );
 
         UUID admin1Id = UUID.randomUUID();
         jdbcTemplate.update(
-            "INSERT INTO users (id, organization_id, email, password_hash, first_name, last_name, role, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
+            "INSERT INTO identity.users (id, organization_id, email, password_hash, first_name, last_name, role, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
             admin1Id, orgId, "admin1@acme.test", "hash1", "Admin", "One", "ORG_ADMIN", true
         );
 
-        // Inserting an EMPLOYEE in the same organization must succeed
         UUID employeeId = UUID.randomUUID();
         jdbcTemplate.update(
-            "INSERT INTO users (id, organization_id, email, password_hash, first_name, last_name, role, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
+            "INSERT INTO identity.users (id, organization_id, email, password_hash, first_name, last_name, role, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
             employeeId, orgId, "employee@acme.test", "hash2", "Emp", "One", "EMPLOYEE", true
         );
 
-        // Inserting a second ORG_ADMIN in the same organization must fail due to uk_users_one_org_admin
         UUID admin2Id = UUID.randomUUID();
         DataIntegrityViolationException ex = assertThrows(
             DataIntegrityViolationException.class,
             () -> jdbcTemplate.update(
-                "INSERT INTO users (id, organization_id, email, password_hash, first_name, last_name, role, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
+                "INSERT INTO identity.users (id, organization_id, email, password_hash, first_name, last_name, role, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
                 admin2Id, orgId, "admin2@acme.test", "hash3", "Admin", "Two", "ORG_ADMIN", true
             )
         );
 
         assertTrue(ex.getMessage().contains("uk_users_one_org_admin"),
             "Expected failure on uk_users_one_org_admin partial index, but got: " + ex.getMessage());
+    }
+
+    @Test
+    void forceRlsShouldHideOtherOrganizationsProducts() {
+        UUID orgA = UUID.randomUUID();
+        UUID orgB = UUID.randomUUID();
+        UUID productB = UUID.randomUUID();
+
+        setOrg(orgA);
+        jdbcTemplate.update(
+            "INSERT INTO identity.organizations (id, name, slug, active, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())",
+            orgA, "Org A", "org-a-" + orgA, true
+        );
+        setOrg(orgB);
+        jdbcTemplate.update(
+            "INSERT INTO identity.organizations (id, name, slug, active, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())",
+            orgB, "Org B", "org-b-" + orgB, true
+        );
+        jdbcTemplate.update(
+            """
+            INSERT INTO catalog.products (
+                id, organization_id, sku, name, category, unit_price, cost_price,
+                stock_quantity, reorder_level, active, version, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, 1, 1, 10, 2, true, 0, NOW(), NOW())
+            """,
+            productB, orgB, "SKU-B", "Hidden", "test"
+        );
+
+        setOrg(orgA);
+        Integer visible = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM catalog.products WHERE id = ?",
+            Integer.class,
+            productB
+        );
+        assertEquals(0, visible, "Org A must not see Org B's product under FORCE RLS");
+    }
+
+    private void setOrg(UUID organizationId) {
+        TenantContext.setOrganizationId(organizationId);
     }
 }

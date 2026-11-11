@@ -192,7 +192,7 @@ class ApiKeyControllerTest {
             .andExpect(jsonPath("$.data.content", hasSize(2)));
 
         assertEquals("api-key:Warehouse sync", jdbcTemplate.queryForObject(
-            "SELECT performed_by_email FROM inventory_movements", String.class));
+            "SELECT performed_by_email FROM catalog.inventory_movements", String.class));
     }
 
     @Test

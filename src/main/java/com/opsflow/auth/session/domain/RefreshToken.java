@@ -7,12 +7,13 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import com.opsflow.common.persistence.DbSchemas;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
 
 @Entity
-@Table(name = "refresh_tokens")
+@Table(schema = DbSchemas.IDENTITY, name = "refresh_tokens")
 public class RefreshToken extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

@@ -12,6 +12,7 @@ import com.opsflow.auth.service.AuthService;
 import com.opsflow.auth.session.service.RefreshTokenService;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.common.exception.ErrorCode;
+import com.opsflow.common.tenancy.TenantContext;
 import com.opsflow.organizations.domain.Organization;
 import com.opsflow.organizations.service.OrganizationProvisioningService;
 import com.opsflow.users.domain.Role;
@@ -71,6 +72,7 @@ public class GoogleAuthService {
         GoogleUserInfo googleUser = verifyAndExtractGoogleInfo(idTokenString);
 
         String email = googleUser.email().toLowerCase(Locale.ROOT).trim();
+        TenantContext.setLoginEmail(email);
         Optional<User> existingUserOpt = userRepository.findByEmail(email);
 
         User user;
@@ -100,6 +102,7 @@ public class GoogleAuthService {
             user = userRepository.save(user);
         }
 
+        TenantContext.setOrganizationId(organization.getId());
         String jwtToken = jwtService.generateToken(user);
         String refreshToken = refreshTokenService.issueToken(user);
 

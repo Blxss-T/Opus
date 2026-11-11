@@ -1,6 +1,7 @@
 package com.opsflow.inventory.domain;
 
 import com.opsflow.common.domain.BaseEntity;
+import com.opsflow.common.persistence.DbSchemas;
 import com.opsflow.organizations.domain.Organization;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,7 +14,7 @@ import jakarta.persistence.Version;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "products")
+@Table(schema = DbSchemas.CATALOG, name = "products")
 public class Product extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

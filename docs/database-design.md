@@ -1,7 +1,8 @@
 # Opus — Database Design
 
-**Database:** PostgreSQL, schema from Flyway `V1`–`V15`  
-**Tenancy:** shared database, `organization_id` on every org-owned table  
+**Database:** PostgreSQL, Flyway `V1`–`V18`  
+**Tenancy:** shared database; `organization_id` on org-owned tables; FORCE RLS from `V17`  
+**Schemas:** `identity`, `catalog`, `purchasing`, `sales`, `ops`, `reporting` (`V16`)  
 **IDs:** UUID (`gen_random_uuid()` / JPA UUID)
 
 Use this for entity screens, forms, and relationship diagrams in Figma.
@@ -11,22 +12,24 @@ Use this for entity screens, forms, and relationship diagrams in Figma.
 ## 1. ER overview
 
 ```text
-organizations
+identity.organizations
     |
-    +-- users (1 ORG_ADMIN via partial unique index)
-    |     +-- refresh_tokens
-    |     +-- employees.user_id (optional unique)
-    +-- employees
-    +-- customers
-    +-- suppliers
-    |     +-- purchase_orders --> purchase_order_items --> products
-    +-- products --> inventory_movements
-    +-- sales_orders --> sales_order_items --> products
-    |              \--> customers
-    +-- api_keys
-    +-- audit_events
+    +-- identity.users (1 ORG_ADMIN via partial unique index)
+    |     +-- identity.refresh_tokens
+    |     +-- identity.employees.user_id (optional unique)
+    +-- identity.employees
+    +-- sales.customers
+    +-- purchasing.suppliers
+    |     +-- purchasing.purchase_orders --> purchase_order_items --> catalog.products
+    +-- catalog.products --> catalog.inventory_movements
+    +-- sales.sales_orders --> sales.sales_order_items --> catalog.products
+    |              \--> sales.customers
+    +-- ops.api_keys
+    +-- ops.audit_events
 
-otp_codes     (keyed by email, not org — pre-login)
+identity.otp_codes     (keyed by email, not org — pre-login; no tenant RLS)
+reporting.v_low_stock, v_open_orders
+reporting.mv_daily_sales, mv_monthly_sales
 ```
 
 ---
@@ -39,7 +42,7 @@ otp_codes     (keyed by email, not org — pre-login)
 - Employees use `employment_status` instead of `active`
 - Money: `NUMERIC(12,2)` lines, `NUMERIC(14,2)` order totals
 - Emails stored lower-case in application code
-- Org isolation: **every query in services includes organization id from the token**, not from the client
+- Org isolation: services filter by organization id from the token; PostgreSQL FORCE RLS uses `app.organization_id` (empty GUC ⇒ no rows). Login/API-key/refresh lookups use extra GUCs, not a bypass of tenant data.
 
 ---
 
@@ -208,6 +211,6 @@ Read-only table for ORG_ADMIN: actor, actor_type USER/API_KEY, method, path, res
 
 ## 6. Not in the database (do not design as live data)
 
-No tables for: invoices, payments, files/attachments, notifications inbox, subscriptions/billing, Redis cache, organization settings JSON, warehouses/multi-location stock, tax engines.
+No tables for: invoices, payments, files/attachments, notifications inbox, subscriptions/billing, organization settings JSON, warehouses/multi-location stock, tax engines.
 
-When those land they will need new Flyway versions (`V16+`). Never edit V1–V15 in place.
+Redis is **not** in PostgreSQL; it holds rate-limit counters and dashboard keys only. Reporting views/MVs are in `reporting` (`V18`). Never edit V1–V15 in place; add `V19+`.

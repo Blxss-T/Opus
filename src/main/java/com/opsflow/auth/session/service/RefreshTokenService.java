@@ -2,6 +2,7 @@ package com.opsflow.auth.session.service;
 
 import com.opsflow.auth.session.domain.RefreshToken;
 import com.opsflow.auth.session.repository.RefreshTokenRepository;
+import com.opsflow.common.tenancy.TenantContext;
 import com.opsflow.users.domain.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,8 +64,14 @@ public class RefreshTokenService {
      */
     @Transactional
     public User consumeToken(String rawToken) {
-        RefreshToken refreshToken = refreshTokenRepository.findByTokenHash(sha256(rawToken))
+        String tokenHash = sha256(rawToken);
+        TenantContext.setRefreshTokenHash(tokenHash);
+        RefreshToken refreshToken = refreshTokenRepository.findByTokenHash(tokenHash)
             .orElseThrow(RevokedRefreshTokenException::new);
+        User loadedUser = refreshToken.getUser();
+        if (loadedUser != null && loadedUser.getOrganization() != null) {
+            TenantContext.setOrganizationId(loadedUser.getOrganization().getId());
+        }
 
         boolean previouslyUsed = refreshToken.isRevoked() || refreshToken.getExpiresAt().isBefore(Instant.now());
 

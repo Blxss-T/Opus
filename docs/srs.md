@@ -1,9 +1,9 @@
 # Software Requirements Specification (SRS)
 
 **Product name:** Opus  
-**Document version:** 1.0  
+**Document version:** 1.1  
 **Date:** 2026-11-11  
-**Status:** Reflects the current repository. Functional requirements below are implemented unless marked **[NOT IMPLEMENTED]**.
+**Status:** Reflects the current repository (schemas, FORCE RLS, Redis rate limits/cache, step-up). Functional requirements below are implemented unless marked **[NOT IMPLEMENTED]**.
 
 ---
 
@@ -41,9 +41,9 @@ Opus is a **modular monolith**: one Spring Boot application, one PostgreSQL data
 
 ### 2.1 Operating environment
 
-- API: Java 21 / Spring Boot 3.3, PostgreSQL  
+- API: Java 21 / Spring Boot 3.3, PostgreSQL, Redis  
 - SPA: browser, Vite dev server or static host  
-- Local mail: Mailpit  
+- Local: Mailpit + Redis via Compose  
 
 ### 2.2 Design constraints
 
@@ -75,6 +75,8 @@ Opus is a **modular monolith**: one Spring Boot application, one PostgreSQL data
 | FR-A8 | Forgot/reset password uses emailed OTP; responses do not reveal whether the email exists |
 | FR-A9 | Email OTP send/verify (hashed codes, expiry, attempt lock) |
 | FR-A10 | Inactive user or organization cannot authenticate |
+| FR-A11 | `POST /auth/step-up` with the current password issues an access token with `reauthExp` |
+| FR-A12 | API key create/revoke, user role change/deactivate, org rename, PO receive, and SO fulfil require a non-expired `reauthExp` (API keys themselves are exempt) |
 
 ### 3.2 Users and employees
 
@@ -133,8 +135,10 @@ Opus is a **modular monolith**: one Spring Boot application, one PostgreSQL data
 | --- | --- |
 | FR-X1 | Consistent error envelope; no stack traces to clients |
 | FR-X2 | Jakarta Validation on request bodies |
-| FR-X3 | Role annotations + tenant queries |
+| FR-X3 | Role annotations + tenant queries; PostgreSQL FORCE RLS as defense in depth |
 | FR-X4 | List endpoints accept `page`, `size`, `sort`, and documented filters |
+| FR-X5 | Redis rate limits: public auth (IP+path), authenticated (org+user), API keys; `429` + `Retry-After` |
+| FR-X6 | Dashboard and low-stock responses may be Redis-cached with write invalidation |
 
 ---
 
@@ -150,7 +154,7 @@ The items in **4.2** are what a real backend still needs. Treat them as **[NOT I
 | NFR-2 | JWT signature + expiry | |
 | NFR-3 | HTTPS-ready app (TLS is the proxy’s job) | Dev is HTTP |
 | NFR-4 | Health endpoint | `/api/v1/health`, `/actuator/health` |
-| NFR-5 | Schema migrations | Flyway |
+| NFR-5 | Schema migrations | Flyway V1–V18; PostgreSQL schemas + FORCE RLS |
 | NFR-6 | Automated tests | Maven + Vitest |
 
 ### 4.2 Not implemented or not production-grade **[NOT IMPLEMENTED]**
@@ -158,14 +162,14 @@ The items in **4.2** are what a real backend still needs. Treat them as **[NOT I
 | ID | Requirement | Why it is listed |
 | --- | --- | --- |
 | NFR-P1 | **Production API security** | No API gateway, WAF, mTLS, IP allowlist, bot management, or hardened security-header/CSP profile for the SPA. JWT/API keys exist; edge security does not. |
-| NFR-P2 | **Production rate limiting** | No Redis/shared limiter. Public auth uses an **in-memory** per-IP counter (one process only). Authenticated CRUD is not globally rate-limited. Do not claim DDoS protection. |
-| NFR-P3 | **Caching** | **No Redis, no HTTP cache layer, no report cache.** Every dashboard/list hits PostgreSQL. |
+| NFR-P2 | **Edge DDoS / WAF rate limiting** | App Redis limits exist (auth, session, API keys). There is still no gateway/WAF. Do not claim DDoS protection. |
+| NFR-P3 | **HTTP/CDN caching** | Redis caches dashboard + low stock only. No CDN, no cache for arbitrary list endpoints. |
 | NFR-P4 | **Pagination at product scale** | The API has offset pagination (`page`/`size`). There is **no** cursor pagination, no search index, no guaranteed performance past modest org data. UI should still use the existing pager; a “load 10k rows at once” design is out of scope. |
-| NFR-P5 | **Session/store scale-out** | Refresh tokens are in Postgres (good); rate-limit and some OTP cooldown behaviour are JVM-local. |
+| NFR-P5 | **Session/store scale-out** | Refresh tokens are in Postgres; rate-limit counters are in Redis. Some OTP send-cooldown behaviour is still JVM-local. |
 | NFR-P6 | **Secrets management** | No Vault/KMS; secrets in env. |
 | NFR-P7 | **Observability platform** | No Prometheus, Grafana, tracing, or centralized log drain. |
 | NFR-P8 | **File storage** | No uploads, virus scan, or S3. |
-| NFR-P9 | **Async processing** | No durable queue for email or reports. |
+| NFR-P9 | **Durable async processing** | Scheduled MV refresh and session cleanup exist. Email is still synchronous; no Kafka/RabbitMQ. |
 | NFR-P10 | **Backup/HA/DR** | Not specified in-app. |
 | NFR-P11 | **Dependency CVE pipeline in product ops** | CI builds/tests; no stated production SCA gate. |
 | NFR-P12 | **2FA login** | Enum `LOGIN_2FA` exists; no login challenge. |
@@ -192,7 +196,7 @@ UX rules:
 
 - Role-gated navigation  
 - Pagination controls on every collection  
-- Toast/banner for `ERR_422`, `ERR_409`, `ERR_429` (even though production rate limiting is incomplete)  
+- Toast/banner for `ERR_422`, `ERR_409`, `ERR_429`; password modal for step-up `403` (see [uat-user-journeys.md](uat-user-journeys.md))  
 - Never collect organization id  
 - Confirm destructive status changes (receive, fulfil, cancel, revoke key)
 
@@ -213,4 +217,4 @@ The backend is acceptable for UI design when:
 - Swagger lists the modules in §3  
 - SPA on `:5173` can call `:8080` under the `dev` CORS policy  
 
-Production launch additionally requires the items in §4.2 (gateway security, shared rate limiting, caching, HA, files, invoices as product decides).
+Production launch additionally requires the remaining items in §4.2 (gateway/WAF, TLS, HA, files, invoices as product decides).

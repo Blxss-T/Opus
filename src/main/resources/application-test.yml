@@ -10,6 +10,10 @@ spring:
       ddl-auto: create-drop
   flyway:
     enabled: false
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
   mail:
     host:
 
@@ -22,6 +26,17 @@ security:
     pepper: test-otp-pepper
   rate-limit:
     enabled: false
+    fail-closed: false
+  step-up:
+    enabled: false
+
+opus:
+  cache:
+    enabled: false
+  jobs:
+    enabled: false
+    reporting-refresh-ms: 0
+    otp-cleanup-ms: 0
 
 logging:
   level:

@@ -123,6 +123,7 @@ public class OtpService {
         otpRepository.save(otpCode);
 
         if (otpType == OtpType.EMAIL_VERIFICATION) {
+            com.opsflow.common.tenancy.TenantContext.setLoginEmail(cleanEmail);
             userRepository.findByEmail(cleanEmail).ifPresent(user -> {
                 if (user.getEmailVerifiedAt() == null) {
                     user.setEmailVerifiedAt(Instant.now());

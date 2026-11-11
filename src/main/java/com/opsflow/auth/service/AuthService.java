@@ -11,6 +11,7 @@ import com.opsflow.auth.session.service.RefreshTokenService;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.common.exception.ErrorCode;
 import com.opsflow.common.exception.ResourceNotFoundException;
+import com.opsflow.common.tenancy.TenantContext;
 import com.opsflow.organizations.domain.Organization;
 import com.opsflow.organizations.service.OrganizationProvisioningService;
 import com.opsflow.users.domain.Role;
@@ -49,7 +50,9 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
+        String email = request.email().toLowerCase(Locale.ROOT).trim();
+        TenantContext.setLoginEmail(email);
+        if (userRepository.existsByEmail(email)) {
             throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "User with this email already exists");
         }
 
@@ -59,13 +62,14 @@ public class AuthService {
         String encodedPassword = passwordEncoder.encode(request.password());
         User user = new User(
             organization,
-            request.email().toLowerCase(Locale.ROOT).trim(),
+            email,
             encodedPassword,
             request.firstName().trim(),
             request.lastName().trim(),
             Role.ORG_ADMIN
         );
         user = userRepository.save(user);
+        TenantContext.setOrganizationId(organization.getId());
 
         String token = jwtService.generateToken(user);
         String refreshToken = refreshTokenService.issueToken(user);
@@ -114,6 +118,7 @@ public class AuthService {
     @Transactional
     public AuthResponse login(LoginRequest request) {
         String email = request.email().toLowerCase(Locale.ROOT).trim();
+        TenantContext.setLoginEmail(email);
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED, "Invalid email or password"));
 
@@ -125,6 +130,7 @@ public class AuthService {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "Invalid email or password");
         }
 
+        TenantContext.setOrganizationId(user.getOrganization().getId());
         String token = jwtService.generateToken(user);
         String refreshToken = refreshTokenService.issueToken(user);
 
@@ -149,12 +155,29 @@ public class AuthService {
             throw new BusinessException(ErrorCode.FORBIDDEN, "Account or organization is inactive");
         }
 
+        TenantContext.setOrganizationId(user.getOrganization().getId());
         String token = jwtService.generateToken(user);
         String refreshToken = refreshTokenService.issueToken(user);
 
         return AuthResponse.of(
             token,
             refreshToken,
+            UserResponse.fromEntity(user),
+            OrganizationResponse.fromEntity(user.getOrganization())
+        );
+    }
+
+    @Transactional
+    public AuthResponse stepUp(UserPrincipal principal, String password) {
+        User user = userRepository.findById(principal.getId())
+            .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED, "Unauthenticated request"));
+        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "Invalid email or password");
+        }
+        String token = jwtService.generateSteppedUpToken(user);
+        return AuthResponse.of(
+            token,
+            null,
             UserResponse.fromEntity(user),
             OrganizationResponse.fromEntity(user.getOrganization())
         );

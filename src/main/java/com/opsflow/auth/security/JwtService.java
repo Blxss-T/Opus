@@ -20,10 +20,17 @@ public class JwtService {
 
     private final SecretKey secretKey;
     private final long expirationMs;
+    private final long stepUpTtlSeconds;
 
+    public JwtService(String secret, long expirationMs) {
+        this(secret, expirationMs, 300);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
     public JwtService(
         @Value("${security.jwt.secret-key}") String secret,
-        @Value("${security.jwt.expiration-ms:900000}") long expirationMs
+        @Value("${security.jwt.expiration-ms:900000}") long expirationMs,
+        @Value("${security.step-up.ttl-seconds:300}") long stepUpTtlSeconds
     ) {
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 32) {
@@ -34,21 +41,32 @@ public class JwtService {
         }
         this.secretKey = Keys.hmacShaKeyFor(keyBytes);
         this.expirationMs = expirationMs;
+        this.stepUpTtlSeconds = stepUpTtlSeconds;
     }
 
     public String generateToken(User user) {
+        return generateToken(user, null);
+    }
+
+    public String generateSteppedUpToken(User user) {
+        return generateToken(user, Instant.now().plusSeconds(stepUpTtlSeconds));
+    }
+
+    public String generateToken(User user, Instant reauthExp) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
             .subject(user.getEmail())
             .claim("userId", user.getId().toString())
             .claim("organizationId", user.getOrganization().getId().toString())
             .claim("role", user.getRole().name())
             .issuedAt(now)
-            .expiration(expiryDate)
-            .signWith(secretKey)
-            .compact();
+            .expiration(expiryDate);
+        if (reauthExp != null) {
+            builder.claim("reauthExp", reauthExp.getEpochSecond());
+        }
+        return builder.signWith(secretKey).compact();
     }
 
     public boolean validateToken(String token) {
@@ -85,6 +103,20 @@ public class JwtService {
     public Role getRoleFromToken(String token) {
         String roleStr = getClaims(token).get("role", String.class);
         return Role.valueOf(roleStr);
+    }
+
+    public Instant getReauthExpFromToken(String token) {
+        Object value = getClaims(token).get("reauthExp");
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return Instant.ofEpochSecond(number.longValue());
+        }
+        if (value instanceof Date date) {
+            return date.toInstant();
+        }
+        return Instant.parse(value.toString());
     }
 
     private Claims getClaims(String token) {

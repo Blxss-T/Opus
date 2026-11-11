@@ -3,6 +3,7 @@ package com.opsflow.auth.controller;
 import com.opsflow.auth.dto.AuthResponse;
 import com.opsflow.auth.dto.LoginRequest;
 import com.opsflow.auth.dto.RegisterRequest;
+import com.opsflow.auth.dto.StepUpRequest;
 import com.opsflow.auth.dto.UserResponse;
 import com.opsflow.auth.google.dto.GoogleAuthRequest;
 import com.opsflow.auth.google.service.GoogleAuthService;
@@ -53,6 +54,15 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> authenticateWithGoogle(@Valid @RequestBody GoogleAuthRequest request) {
         AuthResponse response = googleAuthService.authenticateGoogleUser(request.idToken());
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/step-up")
+    @Operation(summary = "Step-up re-authentication", description = "Confirms the current password and returns a new access token with a short-lived reauthExp claim required for sensitive actions.")
+    public ResponseEntity<ApiResponse<AuthResponse>> stepUp(
+        @AuthenticationPrincipal UserPrincipal principal,
+        @Valid @RequestBody StepUpRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(authService.stepUp(principal, request.password())));
     }
 
     @GetMapping("/me")

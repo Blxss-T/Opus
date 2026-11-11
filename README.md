@@ -30,7 +30,7 @@ Connecting another application? See the [integration guide](docs/integration-gui
 - **Docs**: OpenAPI / Swagger UI (`/swagger-ui.html`)
 - **Health**: `/api/v1/health` and `/actuator/health`
 
-Redis is intentionally **not** in local compose until there is a caching or rate-limit need.
+Redis (in Compose) backs auth/API rate limits and a short-lived dashboard cache.
 
 ## Quick start
 
@@ -46,7 +46,7 @@ Redis is intentionally **not** in local compose until there is a caching or rate
 docker compose up -d
 ```
 
-This starts PostgreSQL and Mailpit. Emails sent in the dev profile (OTP and password reset codes) are viewable at `http://localhost:8025`.
+This starts PostgreSQL, Redis, and Mailpit. Emails sent in the dev profile (OTP and password reset codes) are viewable at `http://localhost:8025`.
 
 Copy `.env.example` to `.env` if you want local overrides. Do not commit real secrets.
 
@@ -281,7 +281,7 @@ curl -H "X-API-Key: opk_..." http://localhost:8080/api/v1/products
 - **Scopes.** `products`, `customers`, `suppliers`, `purchase-orders` and `sales-orders` each have `:read` and `:write`; `employees` and `reports` have `:read` only. `GET` requests need the read scope, everything else the write scope, and a write scope includes read. A request outside the key's scopes returns `403`.
 - **Limits of a key.** A key only sees its own organization and cannot reach the user, auth or API key endpoints, so it cannot create users or other keys.
 - **Storage.** Only a SHA-256 hash and a short display prefix are stored. A lost key cannot be recovered; revoke it and create a new one.
-- **Rate limit.** Each key gets 120 requests per minute across all endpoints (`API_KEY_RATE_LIMIT`, `API_KEY_RATE_LIMIT_WINDOW_SECONDS`), then `429` with `Retry-After`. In-memory, single node.
+- **Rate limit.** Each key gets 120 requests per minute across all endpoints (`API_KEY_RATE_LIMIT`, `API_KEY_RATE_LIMIT_WINDOW_SECONDS`), then `429` with `Retry-After`. Counters live in Redis (in-memory fallback if Redis is down in non-prod).
 - **Attribution.** Orders and stock movements written by a key are recorded as `api-key:<name>`.
 
 ## Idempotent order creation
@@ -306,7 +306,13 @@ Newest first, with the usual `page`, `size` and `sort`.
 
 ## Rate limiting
 
-Public auth endpoints (`/auth/login`, `/auth/register`, `/auth/google`, `/auth/otp/send`, `/auth/password/forgot`, `/auth/password/reset`) are rate limited per IP + endpoint: default 10 requests per 60 seconds, returning `429 Too Many Requests` with a `Retry-After` header. Tune with `RATE_LIMIT_ENABLED`, `RATE_LIMIT_LIMIT`, `RATE_LIMIT_WINDOW_SECONDS`. The implementation is in-memory (single node); move to Redis when scaling beyond one instance.
+Public auth endpoints (`/auth/login`, `/auth/register`, `/auth/google`, `/auth/otp/send`, `/auth/password/forgot`, `/auth/password/reset`) are rate limited per IP + endpoint: default 10 requests per 60 seconds, returning `429 Too Many Requests` with a `Retry-After` header. Authenticated JWT sessions are limited per organization + user (`RATE_LIMIT_AUTHENTICATED_LIMIT`). Tune with `RATE_LIMIT_ENABLED`, `RATE_LIMIT_LIMIT`, `RATE_LIMIT_WINDOW_SECONDS`. Redis holds counters; if Redis errors, `dev` fails open (in-memory fallback) and `prod` fails closed (`RATE_LIMIT_FAIL_CLOSED`).
+
+Sensitive mutations (API key create/revoke, user role/deactivate, organization rename, PO receive, SO fulfil) require `POST /api/v1/auth/step-up` with the current password. That issues a new access token with `reauthExp` (`STEP_UP_TTL_SECONDS`). The SPA should prompt for the password and retry. API keys are exempt.
+
+PostgreSQL tables live in `identity`, `catalog`, `purchasing`, `sales`, `ops`, and `reporting`. Row-level security is `FORCE`d on org-owned tables; the API sets `app.organization_id` on each connection. Reporting views/MVs are in `reporting`; a scheduled job refreshes MVs and expires OTP/refresh rows. Dashboard summary and low-stock lists are cached in Redis (`CACHE_TTL_SECONDS`) and invalidated on catalog/order writes.
+
+Load scripts live in `perf/k6/` (not part of unit tests). UI UAT paths are in `docs/uat-user-journeys.md`.
 
 The client IP is the connection's remote address; a client-supplied `X-Forwarded-For` header is ignored. When deploying behind a reverse proxy or load balancer, set `FORWARD_HEADERS_STRATEGY=native` so the real client IP is taken from the trusted proxy's forwarded headers — otherwise every user shares the proxy's IP and one limit.
 
@@ -316,4 +322,4 @@ Browser frontends on another origin must be listed in `CORS_ALLOWED_ORIGINS` (co
 
 ## Environment
 
-See `.env.example` for `DB_*`, `JWT_SECRET`, `JWT_EXPIRATION_MS`, `REFRESH_TOKEN_TTL`, `RATE_LIMIT_*`, `CORS_ALLOWED_ORIGINS`, `GOOGLE_CLIENT_ID`, `OTP_PEPPER`, `API_KEY_RATE_LIMIT*`, and `MAIL_*`.
+See `.env.example` for `DB_*` (including `DB_OWNER` vs `DB_USER`), `REDIS_*`, `JWT_SECRET`, `JWT_EXPIRATION_MS`, `REFRESH_TOKEN_TTL`, `RATE_LIMIT_*`, `STEP_UP_*`, `CACHE_*`, `JOBS_*`, `CORS_ALLOWED_ORIGINS`, `GOOGLE_CLIENT_ID`, `OTP_PEPPER`, `API_KEY_RATE_LIMIT*`, and `MAIL_*`.

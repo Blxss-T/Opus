@@ -1,6 +1,7 @@
 package com.opsflow.purchasing.domain;
 
 import com.opsflow.common.domain.BaseEntity;
+import com.opsflow.common.persistence.DbSchemas;
 import com.opsflow.organizations.domain.Organization;
 import com.opsflow.suppliers.domain.Supplier;
 import jakarta.persistence.CascadeType;
@@ -21,7 +22,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "purchase_orders")
+@Table(schema = DbSchemas.PURCHASING, name = "purchase_orders")
 public class PurchaseOrder extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

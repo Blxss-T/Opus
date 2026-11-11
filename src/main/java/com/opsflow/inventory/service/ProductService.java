@@ -1,6 +1,7 @@
 package com.opsflow.inventory.service;
 
 import com.opsflow.auth.security.UserPrincipal;
+import com.opsflow.common.cache.OrgCacheService;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.common.exception.ErrorCode;
 import com.opsflow.common.exception.ResourceNotFoundException;
@@ -32,15 +33,18 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final InventoryMovementRepository inventoryMovementRepository;
     private final OrganizationRepository organizationRepository;
+    private final OrgCacheService orgCacheService;
 
     public ProductService(
         ProductRepository productRepository,
         InventoryMovementRepository inventoryMovementRepository,
-        OrganizationRepository organizationRepository
+        OrganizationRepository organizationRepository,
+        OrgCacheService orgCacheService
     ) {
         this.productRepository = productRepository;
         this.inventoryMovementRepository = inventoryMovementRepository;
         this.organizationRepository = organizationRepository;
+        this.orgCacheService = orgCacheService;
     }
 
     @Transactional
@@ -87,6 +91,7 @@ public class ProductService {
             inventoryMovementRepository.save(initialMovement);
         }
 
+        evictCache(organizationId);
         return ProductResponse.fromEntity(product);
     }
 
@@ -120,6 +125,7 @@ public class ProductService {
         product.setReorderLevel(request.reorderLevel());
 
         Product saved = productRepository.save(product);
+        evictCache(principal.getOrganizationId());
         return ProductResponse.fromEntity(saved);
     }
 
@@ -128,6 +134,7 @@ public class ProductService {
         Product product = findProductForTenant(principal.getOrganizationId(), productId);
         product.setActive(false);
         Product saved = productRepository.save(product);
+        evictCache(principal.getOrganizationId());
         return ProductResponse.fromEntity(saved);
     }
 
@@ -180,6 +187,7 @@ public class ProductService {
             principal.getUsername()
         );
         inventoryMovementRepository.save(movement);
+        evictCache(principal.getOrganizationId());
 
         return ProductResponse.fromEntity(savedProduct);
     }
@@ -202,6 +210,12 @@ public class ProductService {
         Pageable effective = FilterSpecs.withDefaultSort(pageable, Sort.Order.desc("createdAt"));
         return inventoryMovementRepository.findAll(spec, effective)
             .map(InventoryMovementResponse::fromEntity);
+    }
+
+    private void evictCache(UUID organizationId) {
+        if (orgCacheService != null) {
+            orgCacheService.evictOrganization(organizationId);
+        }
     }
 
     private Product findProductForTenant(UUID organizationId, UUID productId) {

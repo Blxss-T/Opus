@@ -20,11 +20,8 @@ import java.time.Instant;
 import java.util.Set;
 
 /**
- * Fixed-window in-memory rate limiter for the public authentication endpoints
- * (password brute force, OTP flooding, reset-code enumeration).
- *
- * Single-node only; replace with Redis-backed limiting when the app scales
- * beyond one instance.
+ * Rate limiter for public authentication endpoints (password brute force,
+ * OTP flooding, reset-code enumeration). Counters live in Redis when available.
  */
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
@@ -40,19 +37,25 @@ public class RateLimitFilter extends OncePerRequestFilter {
         "/api/v1/auth/password/reset"
     );
 
-    private final SlidingWindowRateLimiter limiter;
+    private final RateLimiter limiter;
     private final ObjectMapper objectMapper;
     private final boolean enabled;
+    private final int limit;
     private final long windowSeconds;
 
     @org.springframework.beans.factory.annotation.Autowired
     public RateLimitFilter(
         ObjectMapper objectMapper,
+        RateLimiter limiter,
         @Value("${security.rate-limit.enabled:true}") boolean enabled,
         @Value("${security.rate-limit.limit:10}") int limit,
         @Value("${security.rate-limit.window-seconds:60}") long windowSeconds
     ) {
-        this(objectMapper, enabled, limit, windowSeconds, Clock.systemUTC());
+        this.objectMapper = objectMapper;
+        this.limiter = limiter;
+        this.enabled = enabled;
+        this.limit = limit;
+        this.windowSeconds = windowSeconds;
     }
 
     RateLimitFilter(
@@ -64,8 +67,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
     ) {
         this.objectMapper = objectMapper;
         this.enabled = enabled;
+        this.limit = limit;
         this.windowSeconds = windowSeconds;
-        this.limiter = new SlidingWindowRateLimiter(limit, windowSeconds, clock);
+        this.limiter = new SlidingWindowRateLimiter(clock);
+    }
+
+    RateLimitFilter(
+        ObjectMapper objectMapper,
+        boolean enabled,
+        int limit,
+        long windowSeconds
+    ) {
+        this(objectMapper, enabled, limit, windowSeconds, Clock.systemUTC());
     }
 
     @Override
@@ -80,7 +93,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        String key = clientIp(request) + "|" + request.getRequestURI();
+        String key = "auth:" + clientIp(request) + "|" + request.getRequestURI();
 
         if (!tryAcquire(key)) {
             log.warn("Rate limit exceeded for {} on {}", clientIp(request), request.getRequestURI());
@@ -92,7 +105,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     boolean tryAcquire(String key) {
-        return limiter.tryAcquire(key);
+        return limiter.tryAcquire(key, limit, windowSeconds);
     }
 
     /**

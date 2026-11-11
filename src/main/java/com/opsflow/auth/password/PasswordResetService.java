@@ -62,6 +62,7 @@ public class PasswordResetService {
     @Transactional
     public void requestReset(String email) {
         String cleanEmail = email.toLowerCase(Locale.ROOT).trim();
+        com.opsflow.common.tenancy.TenantContext.setLoginEmail(cleanEmail);
         var userOpt = userRepository.findByEmail(cleanEmail);
 
         if (userOpt.isEmpty()) {
@@ -76,9 +77,11 @@ public class PasswordResetService {
     @Transactional
     public void resetPassword(String email, String code, String newPassword) {
         String cleanEmail = email.toLowerCase(Locale.ROOT).trim();
+        com.opsflow.common.tenancy.TenantContext.setLoginEmail(cleanEmail);
 
         User user = userRepository.findByEmail(cleanEmail)
             .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED, "Invalid or expired reset code"));
+        com.opsflow.common.tenancy.TenantContext.setOrganizationId(user.getOrganization().getId());
 
         if (!user.isActive() || !user.getOrganization().isActive()) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "Account or organization is inactive");

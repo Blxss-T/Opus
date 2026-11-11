@@ -1,6 +1,7 @@
 package com.opsflow.organizations.service;
 
 import com.opsflow.auth.dto.OrganizationResponse;
+import com.opsflow.auth.security.StepUpGuard;
 import com.opsflow.auth.security.UserPrincipal;
 import com.opsflow.common.exception.ResourceNotFoundException;
 import com.opsflow.organizations.domain.Organization;
@@ -15,9 +16,11 @@ import java.util.UUID;
 public class OrganizationService {
 
     private final OrganizationRepository organizationRepository;
+    private final StepUpGuard stepUpGuard;
 
-    public OrganizationService(OrganizationRepository organizationRepository) {
+    public OrganizationService(OrganizationRepository organizationRepository, StepUpGuard stepUpGuard) {
         this.organizationRepository = organizationRepository;
+        this.stepUpGuard = stepUpGuard;
     }
 
     @Transactional(readOnly = true)
@@ -28,6 +31,9 @@ public class OrganizationService {
     /** Renames the organization. The slug is a stable identifier and does not change. */
     @Transactional
     public OrganizationResponse updateCurrent(UserPrincipal principal, UpdateOrganizationRequest request) {
+        if (stepUpGuard != null) {
+            stepUpGuard.require(principal);
+        }
         Organization organization = findForCaller(principal);
         organization.setName(request.name().trim());
         return OrganizationResponse.fromEntity(organizationRepository.save(organization));

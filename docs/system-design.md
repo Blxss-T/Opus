@@ -9,7 +9,7 @@
 
 ## 1. Purpose
 
-Opus gives one organization a single backend for identity, people, catalog, buying, selling, reporting, and integrations. Tenants share one PostgreSQL database and are isolated by `organization_id` on every business table. The browser never sends the organization id; the API takes it from the JWT or API key.
+Opus gives one organization a single backend for identity, people, catalog, buying, selling, reporting, and integrations. Tenants share one PostgreSQL database. Isolation is `organization_id` in Java **and** FORCE row-level security on org-owned tables (GUC `app.organization_id`). The browser never sends the organization id; the API takes it from the JWT or API key.
 
 ---
 
@@ -29,10 +29,11 @@ Spring Boot 3.3 API  (com.opsflow, port 8080)
         +-- Services (transactions, tenant checks, stock)
         +-- Spring Data JPA
         v
-PostgreSQL  (opus_db)
+PostgreSQL  (schemas: identity, catalog, purchasing, sales, ops, reporting)
+Redis       (rate-limit counters, dashboard/low-stock cache)
 ```
 
-Supporting processes in local Compose: PostgreSQL, Mailpit (OTP/reset emails). Redis is **not** wired. The API image can run under `docker compose --profile app`.
+Supporting processes in local Compose: PostgreSQL, Redis, Mailpit (OTP/reset emails). The API image can run under `docker compose --profile app`.
 
 ```text
 Internet
@@ -42,9 +43,9 @@ Internet
    |
    +--> Opus SPA (static)
    +--> Opus API
-           +--> PostgreSQL
+           +--> PostgreSQL (FORCE RLS)
+           +--> Redis (rate limits + short dashboard cache)
            +--> Mail (SMTP / Mailpit in dev)
-           +--> [ Not implemented: Redis cache / distributed rate limit ]
            +--> [ Not implemented: object storage for files ]
 ```
 
@@ -57,7 +58,8 @@ Internet
 | API | Java 21 target, Spring Boot 3.3.3, Maven |
 | Web | Spring MVC, JSON, OpenAPI (`/swagger-ui.html`) |
 | Security | Spring Security, BCrypt, JWT access tokens, hashed refresh tokens, hashed API keys |
-| Persistence | PostgreSQL, Flyway V1–V15, Hibernate/JPA |
+| Persistence | PostgreSQL, Flyway V1–V18, Hibernate/JPA, FORCE RLS |
+| Cache / limits | Redis (auth + authenticated + API-key counters; dashboard TTL cache) |
 | Mail | Spring Mail; OTP and password reset |
 | Frontend | React 19, Vite, TypeScript, TanStack Query, axios |
 | Tests | JUnit/MockMvc/Testcontainers; Vitest + MSW on the SPA |
@@ -70,7 +72,7 @@ Internet
 2. CORS: `dev` allows `http://localhost:5173` and `http://localhost:3000`. Other profiles require `CORS_ALLOWED_ORIGINS`.
 3. Public auth routes do not need a JWT (login, register, Google, OTP, refresh, password forgot/reset).
 4. Everything else needs a Bearer JWT **or** `X-API-Key: opk_...`.
-5. Controllers stay thin. Services enforce organization from `UserPrincipal` (or the key’s org), roles via `@PreAuthorize`, and business rules.
+5. Controllers stay thin. Services enforce organization from `UserPrincipal` (or the key’s org), roles via `@PreAuthorize`, and business rules. PostgreSQL RLS is a second filter. Sensitive mutations need a recent `POST /auth/step-up` (`reauthExp` on the access token).
 6. Responses always wrap in `ApiResponse`: `{ success, data, error, timestamp }`.
 7. List endpoints return `{ content: [], page: { size, number, totalElements, totalPages } }` with `page`, `size` (max 100), `sort`, and module filters.
 
@@ -109,7 +111,7 @@ Pilot rule: **one `ORG_ADMIN` per organization** (partial unique index). `SUPER_
 
 **Tokens**
 
-- Access JWT ~15 minutes (`userId`, `organizationId`, `role`).
+- Access JWT ~15 minutes (`userId`, `organizationId`, `role`; optional `reauthExp` after step-up).
 - Refresh token in `sessionStorage` on the SPA (tab close logs out). API stores only SHA-256 hashes; rotation + reuse detection.
 - Password change/reset invalidates old access tokens and all refresh sessions.
 
@@ -154,7 +156,7 @@ Fulfilling subtracts stock (`OUTBOUND`) and fails the whole transaction if stock
 | Products / customers / suppliers | Yes | Paginated tables, search `q`, soft delete |
 | Purchase orders / sales orders | Yes API, no SPA | Design list + detail + status actions + line items |
 | Users / employees / organization | Yes API, no SPA | Design role-gated admin |
-| API keys / audit | Yes API, no SPA | Show raw key **once**; audit is append-only |
+| API keys / audit | Yes API, no SPA | Show raw key **once**; audit is append-only; create/revoke need step-up |
 
 Shared UI patterns already in the SPA: app shell, role guards, pager, toasts, empty states. New modules should reuse them.
 
@@ -166,28 +168,26 @@ These are **real gaps**. Design the UI to tolerate them later (empty cache, 429,
 
 | Capability | Status |
 | --- | --- |
-| **Redis / response caching** | Not implemented. No cache for products, reports, or sessions. |
-| **Distributed rate limiting** | Not production-grade. Auth and API-key limits are **in-memory on one JVM**. A second instance does not share counters. |
-| **Global API rate limiting** | Not implemented for authenticated CRUD (only public auth + per-key limits). |
+| **Redis / response caching** | Redis is in Compose. Dashboard summary and low-stock lists are cached (~45s) and invalidated on catalog/order writes. Not a general HTTP/CDN cache. |
+| **Distributed rate limiting** | Redis counters for public auth, authenticated users, and API keys (`429` + `Retry-After`). Fail-open in dev if Redis is down; fail-closed in prod. Not a WAF/DDoS product. |
 | **Pagination at CDN/search scale** | List `page`/`size` exists on the API. There is no cursor pagination, Elasticsearch, or infinite-scroll contract. |
 | **Edge / API gateway security** | No Nginx TLS termination in the default run path, no WAF, no mTLS, no IP allowlists, no bot protection. |
 | **Security headers / CSP** | Not a first-class hardened browser policy set for the SPA. |
-| **Secrets management** | Env vars / `.env`; no Vault/KMS. |
+| **Secrets management** | Env vars / `.env`; no Vault/KMS. Never commit `.env`. |
 | **Object storage / files** | No invoices PDFs, employee IDs, or S3 abstraction in use. |
 | **Invoices / payments** | No invoice or payment tables. |
-| **Async jobs / queues** | Email is synchronous; no Kafka/RabbitMQ. |
+| **Async jobs / queues** | `@Scheduled` MV refresh and OTP/refresh cleanup. Email is still synchronous; no Kafka/RabbitMQ. |
 | **Observability stack** | Actuator health/metrics only. No Prometheus/Grafana/OpenTelemetry in the running product. |
-| **Horizontal scale** | Sticky in-memory rate limits and OTP cooldown patterns are single-node. |
 | **SUPER_ADMIN / platform tenancy billing** | Not implemented. |
 
-**Already present (do not design as if missing):** JWT + refresh, tenant isolation, BCrypt, API keys, idempotency on order create, audit of successful writes, Flyway, OpenAPI, CORS, validation envelope.
+**Already present (do not design as if missing):** JWT + refresh, step-up re-auth, tenant isolation in Java + FORCE RLS, BCrypt, API keys, Redis rate limits, dashboard cache, idempotency on order create, audit of successful writes, Flyway V1–V18, OpenAPI, CORS, validation envelope.
 
 ---
 
 ## 10. Deployment (current)
 
-Local: Postgres (+ Mailpit) via Compose; API via `./mvnw spring-boot:run -Dspring-boot.run.profiles=dev,seed`; SPA via `npm run dev`.  
+Local: Postgres + Redis + Mailpit via Compose; API via `./mvnw spring-boot:run -Dspring-boot.run.profiles=dev,seed`; SPA via `npm run dev`.  
 Optional: `docker compose --profile app up --build` for the API container.  
-CI: GitHub Actions `./mvnw verify` + image build.
+CI: GitHub Actions `./mvnw verify` + image build. Load scripts: `perf/k6/` (not gated on every PR). UI UAT: `docs/uat-user-journeys.md`.
 
-Target later: TLS → reverse proxy → SPA + API → PostgreSQL → Redis (when caching/rate-limit land).
+Target later: TLS → reverse proxy / WAF → SPA + API → PostgreSQL → Redis.

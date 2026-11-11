@@ -49,31 +49,31 @@ class DemoDataSeederTest {
 
     @Test
     void shouldSeedDataForEveryModule() {
-        assertEquals(1, count("organizations"));
-        assertEquals(3, count("users"));
-        assertEquals(3, count("employees"));
-        assertEquals(3, count("customers"));
-        assertEquals(2, count("suppliers"));
-        assertEquals(6, count("products"));
-        assertEquals(3, count("purchase_orders"));
-        assertEquals(5, count("sales_orders"));
+        assertEquals(1, count("identity.organizations"));
+        assertEquals(3, count("identity.users"));
+        assertEquals(3, count("identity.employees"));
+        assertEquals(3, count("sales.customers"));
+        assertEquals(2, count("purchasing.suppliers"));
+        assertEquals(6, count("catalog.products"));
+        assertEquals(3, count("purchasing.purchase_orders"));
+        assertEquals(5, count("sales.sales_orders"));
         assertEquals(2, jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM sales_orders WHERE status = 'FULFILLED'", Integer.class));
+            "SELECT COUNT(*) FROM sales.sales_orders WHERE status = 'FULFILLED'", Integer.class));
         assertTrue(jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM products WHERE stock_quantity <= reorder_level", Integer.class) >= 1,
+            "SELECT COUNT(*) FROM catalog.products WHERE stock_quantity <= reorder_level", Integer.class) >= 1,
             "Expected at least one low-stock product");
         // Received PO added 50 and the fulfilled SO removed 20 from the initial 120.
         assertEquals(150, jdbcTemplate.queryForObject(
-            "SELECT stock_quantity FROM products WHERE sku = 'COF-001'", Integer.class));
+            "SELECT stock_quantity FROM catalog.products WHERE sku = 'COF-001'", Integer.class));
     }
 
     @Test
     void shouldBeIdempotent() {
         seeder.run(null);
 
-        assertEquals(1, count("organizations"));
-        assertEquals(6, count("products"));
-        assertEquals(5, count("sales_orders"));
+        assertEquals(1, count("identity.organizations"));
+        assertEquals(6, count("catalog.products"));
+        assertEquals(5, count("sales.sales_orders"));
     }
 
     @Test

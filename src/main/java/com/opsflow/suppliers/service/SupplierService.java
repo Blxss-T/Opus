@@ -1,6 +1,7 @@
 package com.opsflow.suppliers.service;
 
 import com.opsflow.auth.security.UserPrincipal;
+import com.opsflow.common.cache.OrgCacheService;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.common.exception.ErrorCode;
 import com.opsflow.common.exception.ResourceNotFoundException;
@@ -26,13 +27,16 @@ public class SupplierService {
 
     private final SupplierRepository supplierRepository;
     private final OrganizationRepository organizationRepository;
+    private final OrgCacheService orgCacheService;
 
     public SupplierService(
         SupplierRepository supplierRepository,
-        OrganizationRepository organizationRepository
+        OrganizationRepository organizationRepository,
+        OrgCacheService orgCacheService
     ) {
         this.supplierRepository = supplierRepository;
         this.organizationRepository = organizationRepository;
+        this.orgCacheService = orgCacheService;
     }
 
     @Transactional
@@ -61,6 +65,7 @@ public class SupplierService {
         );
 
         Supplier saved = supplierRepository.save(supplier);
+        evictCache(organizationId);
         return SupplierResponse.fromEntity(saved);
     }
 
@@ -102,6 +107,7 @@ public class SupplierService {
         supplier.setTaxNumber(request.taxNumber() != null ? request.taxNumber().trim() : null);
 
         Supplier saved = supplierRepository.save(supplier);
+        evictCache(organizationId);
         return SupplierResponse.fromEntity(saved);
     }
 
@@ -110,7 +116,14 @@ public class SupplierService {
         Supplier supplier = findSupplierForTenant(principal.getOrganizationId(), supplierId);
         supplier.setActive(false);
         Supplier saved = supplierRepository.save(supplier);
+        evictCache(principal.getOrganizationId());
         return SupplierResponse.fromEntity(saved);
+    }
+
+    private void evictCache(UUID organizationId) {
+        if (orgCacheService != null) {
+            orgCacheService.evictOrganization(organizationId);
+        }
     }
 
     private Supplier findSupplierForTenant(UUID organizationId, UUID supplierId) {

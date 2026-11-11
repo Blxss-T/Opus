@@ -2,6 +2,7 @@ package com.opsflow.common.seed;
 
 import com.opsflow.auth.dto.RegisterRequest;
 import com.opsflow.auth.security.UserPrincipal;
+import com.opsflow.common.tenancy.TenantContext;
 import com.opsflow.auth.service.AuthService;
 import com.opsflow.customers.dto.CreateCustomerRequest;
 import com.opsflow.customers.service.CustomerService;
@@ -25,6 +26,7 @@ import com.opsflow.sales.service.SalesOrderService;
 import com.opsflow.suppliers.dto.CreateSupplierRequest;
 import com.opsflow.suppliers.service.SupplierService;
 import com.opsflow.users.domain.Role;
+import com.opsflow.users.domain.User;
 import com.opsflow.users.dto.CreateUserRequest;
 import com.opsflow.users.repository.UserRepository;
 import com.opsflow.users.service.UserService;
@@ -98,13 +100,17 @@ public class DemoDataSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        TenantContext.setLoginEmail(ADMIN_EMAIL);
         if (userRepository.findByEmail(ADMIN_EMAIL).isPresent()) {
             log.info("Demo data already present; skipping seed");
             return;
         }
 
         authService.register(new RegisterRequest(ORGANIZATION_NAME, ADMIN_EMAIL, password, "Ada", "Admin"));
-        UserPrincipal admin = UserPrincipal.create(userRepository.findByEmail(ADMIN_EMAIL).orElseThrow());
+        TenantContext.setLoginEmail(ADMIN_EMAIL);
+        User adminUser = userRepository.findByEmail(ADMIN_EMAIL).orElseThrow();
+        TenantContext.setOrganizationId(adminUser.getOrganization().getId());
+        UserPrincipal admin = UserPrincipal.create(adminUser);
 
         seedTeam(admin);
         List<UUID> customers = seedCustomers(admin);

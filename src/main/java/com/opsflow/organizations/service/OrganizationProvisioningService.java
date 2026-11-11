@@ -1,7 +1,9 @@
 package com.opsflow.organizations.service;
 
+import com.opsflow.common.tenancy.TenantContext;
 import com.opsflow.organizations.domain.Organization;
 import com.opsflow.organizations.repository.OrganizationRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.util.Locale;
@@ -18,13 +20,22 @@ public class OrganizationProvisioningService {
 
     public Organization createOrganization(String name) {
         String baseSlug = generateSlug(name);
-        String slug = baseSlug;
-        int counter = 1;
-        while (organizationRepository.existsBySlug(slug)) {
-            slug = baseSlug + "-" + counter++;
+        DataIntegrityViolationException lastConflict = null;
+        for (int attempt = 0; attempt < 25; attempt++) {
+            String slug = attempt == 0 ? baseSlug : baseSlug + "-" + attempt;
+            UUID id = UUID.randomUUID();
+            TenantContext.setOrganizationId(id);
+            Organization organization = new Organization(name.trim(), slug);
+            organization.setId(id);
+            try {
+                return organizationRepository.save(organization);
+            } catch (DataIntegrityViolationException ex) {
+                lastConflict = ex;
+            }
         }
-        Organization organization = new Organization(name.trim(), slug);
-        return organizationRepository.save(organization);
+        throw lastConflict != null
+            ? lastConflict
+            : new IllegalStateException("Could not allocate an organization slug");
     }
 
     String generateSlug(String name) {

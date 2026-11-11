@@ -9,13 +9,14 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import com.opsflow.common.persistence.DbSchemas;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.Email;
 
 import java.time.Instant;
 
 @Entity
-@Table(name = "users")
+@Table(schema = DbSchemas.IDENTITY, name = "users")
 public class User extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

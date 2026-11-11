@@ -3,10 +3,11 @@ package com.opsflow.organizations.domain;
 import com.opsflow.common.domain.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import com.opsflow.common.persistence.DbSchemas;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "organizations")
+@Table(schema = DbSchemas.IDENTITY, name = "organizations")
 public class Organization extends BaseEntity {
 
     @Column(name = "name", nullable = false)

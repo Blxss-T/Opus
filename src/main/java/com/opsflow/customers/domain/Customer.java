@@ -1,6 +1,7 @@
 package com.opsflow.customers.domain;
 
 import com.opsflow.common.domain.BaseEntity;
+import com.opsflow.common.persistence.DbSchemas;
 import com.opsflow.organizations.domain.Organization;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -10,7 +11,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "customers")
+@Table(schema = DbSchemas.SALES, name = "customers")
 public class Customer extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

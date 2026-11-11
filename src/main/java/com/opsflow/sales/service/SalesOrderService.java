@@ -1,6 +1,8 @@
 package com.opsflow.sales.service;
 
+import com.opsflow.auth.security.StepUpGuard;
 import com.opsflow.auth.security.UserPrincipal;
+import com.opsflow.common.cache.OrgCacheService;
 import com.opsflow.common.exception.BusinessException;
 import com.opsflow.common.exception.ErrorCode;
 import com.opsflow.common.exception.ResourceNotFoundException;
@@ -44,19 +46,25 @@ public class SalesOrderService {
     private final ProductRepository productRepository;
     private final ProductService productService;
     private final OrganizationRepository organizationRepository;
+    private final OrgCacheService orgCacheService;
+    private final StepUpGuard stepUpGuard;
 
     public SalesOrderService(
         SalesOrderRepository salesOrderRepository,
         CustomerRepository customerRepository,
         ProductRepository productRepository,
         ProductService productService,
-        OrganizationRepository organizationRepository
+        OrganizationRepository organizationRepository,
+        OrgCacheService orgCacheService,
+        StepUpGuard stepUpGuard
     ) {
         this.salesOrderRepository = salesOrderRepository;
         this.customerRepository = customerRepository;
         this.productRepository = productRepository;
         this.productService = productService;
         this.organizationRepository = organizationRepository;
+        this.orgCacheService = orgCacheService;
+        this.stepUpGuard = stepUpGuard;
     }
 
     @Transactional
@@ -161,6 +169,7 @@ public class SalesOrderService {
         validateStateTransition(currentStatus, newStatus);
 
         if (newStatus == SalesOrderStatus.FULFILLED) {
+            requireStepUp(principal);
             for (SalesOrderItem item : so.getItems()) {
                 AdjustStockRequest adjustStockRequest = new AdjustStockRequest(
                     -item.getQuantity(),
@@ -173,6 +182,7 @@ public class SalesOrderService {
 
         so.setStatus(newStatus);
         SalesOrder savedSo = salesOrderRepository.save(so);
+        evictCache(organizationId);
 
         return SalesOrderResponse.fromEntity(savedSo);
     }
@@ -205,6 +215,18 @@ public class SalesOrderService {
                 ErrorCode.BUSINESS_RULE_VIOLATION,
                 String.format("Invalid status transition from %s to %s", current, next)
             );
+        }
+    }
+
+    private void requireStepUp(UserPrincipal principal) {
+        if (stepUpGuard != null) {
+            stepUpGuard.require(principal);
+        }
+    }
+
+    private void evictCache(UUID organizationId) {
+        if (orgCacheService != null) {
+            orgCacheService.evictOrganization(organizationId);
         }
     }
 

@@ -6,7 +6,7 @@ import com.opsflow.apikeys.service.ApiKeyService;
 import com.opsflow.apikeys.service.AuthenticatedApiKey;
 import com.opsflow.auth.security.UserPrincipal;
 import com.opsflow.common.exception.ErrorCode;
-import com.opsflow.common.ratelimit.SlidingWindowRateLimiter;
+import com.opsflow.common.ratelimit.RateLimiter;
 import com.opsflow.common.response.ApiResponse;
 import com.opsflow.common.response.ErrorResponse;
 import com.opsflow.users.domain.Role;
@@ -49,21 +49,24 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     private final ApiKeyService apiKeyService;
     private final ObjectMapper objectMapper;
     private final boolean rateLimitEnabled;
+    private final int rateLimit;
     private final long rateLimitWindowSeconds;
-    private final SlidingWindowRateLimiter rateLimiter;
+    private final RateLimiter rateLimiter;
 
     public ApiKeyAuthenticationFilter(
         ApiKeyService apiKeyService,
         ObjectMapper objectMapper,
+        RateLimiter rateLimiter,
         @Value("${security.api-keys.rate-limit.enabled:true}") boolean rateLimitEnabled,
         @Value("${security.api-keys.rate-limit.limit:120}") int rateLimit,
         @Value("${security.api-keys.rate-limit.window-seconds:60}") long rateLimitWindowSeconds
     ) {
         this.apiKeyService = apiKeyService;
         this.objectMapper = objectMapper;
+        this.rateLimiter = rateLimiter;
         this.rateLimitEnabled = rateLimitEnabled;
+        this.rateLimit = rateLimit;
         this.rateLimitWindowSeconds = rateLimitWindowSeconds;
-        this.rateLimiter = new SlidingWindowRateLimiter(rateLimit, rateLimitWindowSeconds);
     }
 
     @Override
@@ -87,7 +90,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         AuthenticatedApiKey apiKey = authenticated.get();
 
         // Per key, across all endpoints, so one integration cannot starve the rest.
-        if (rateLimitEnabled && !rateLimiter.tryAcquire(apiKey.id().toString())) {
+        if (rateLimitEnabled && !rateLimiter.tryAcquire("apikey:" + apiKey.id(), rateLimit, rateLimitWindowSeconds)) {
             log.warn("Rate limit exceeded for API key '{}' ({})", apiKey.name(), apiKey.id());
             response.setHeader("Retry-After", String.valueOf(rateLimitWindowSeconds));
             writeError(request, response, 429, "ERR_429", "Too many requests for this API key. Please try again later.");
@@ -106,7 +109,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         }
 
         UserPrincipal principal = new UserPrincipal(
-            apiKey.id(), apiKey.organizationId(), ACTOR_PREFIX + apiKey.name(), "", Role.MANAGER, true);
+            apiKey.id(), apiKey.organizationId(), ACTOR_PREFIX + apiKey.name(), "", Role.MANAGER, true, null, true);
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
             principal, null, principal.getAuthorities());
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

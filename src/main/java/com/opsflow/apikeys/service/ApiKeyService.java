@@ -5,8 +5,10 @@ import com.opsflow.apikeys.dto.ApiKeyResponse;
 import com.opsflow.apikeys.dto.CreateApiKeyRequest;
 import com.opsflow.apikeys.dto.CreatedApiKeyResponse;
 import com.opsflow.apikeys.repository.ApiKeyRepository;
+import com.opsflow.auth.security.StepUpGuard;
 import com.opsflow.auth.security.UserPrincipal;
 import com.opsflow.common.exception.ResourceNotFoundException;
+import com.opsflow.common.tenancy.TenantContext;
 import com.opsflow.organizations.domain.Organization;
 import com.opsflow.organizations.repository.OrganizationRepository;
 import org.slf4j.Logger;
@@ -38,15 +40,22 @@ public class ApiKeyService {
 
     private final ApiKeyRepository apiKeyRepository;
     private final OrganizationRepository organizationRepository;
+    private final StepUpGuard stepUpGuard;
     private final SecureRandom secureRandom = new SecureRandom();
 
-    public ApiKeyService(ApiKeyRepository apiKeyRepository, OrganizationRepository organizationRepository) {
+    public ApiKeyService(
+        ApiKeyRepository apiKeyRepository,
+        OrganizationRepository organizationRepository,
+        StepUpGuard stepUpGuard
+    ) {
         this.apiKeyRepository = apiKeyRepository;
         this.organizationRepository = organizationRepository;
+        this.stepUpGuard = stepUpGuard;
     }
 
     @Transactional
     public CreatedApiKeyResponse createApiKey(UserPrincipal principal, CreateApiKeyRequest request) {
+        requireStepUp(principal);
         UUID organizationId = principal.getOrganizationId();
         Organization organization = organizationRepository.findById(organizationId)
             .orElseThrow(() -> new ResourceNotFoundException("Organization", "id", organizationId));
@@ -80,6 +89,7 @@ public class ApiKeyService {
 
     @Transactional
     public ApiKeyResponse revokeApiKey(UserPrincipal principal, UUID apiKeyId) {
+        requireStepUp(principal);
         ApiKey apiKey = apiKeyRepository.findByIdAndOrganizationId(apiKeyId, principal.getOrganizationId())
             .orElseThrow(() -> new ResourceNotFoundException("ApiKey", "id", apiKeyId));
 
@@ -102,12 +112,15 @@ public class ApiKeyService {
         }
 
         Instant now = Instant.now();
-        Optional<ApiKey> found = apiKeyRepository.findByKeyHash(hash(rawKey)).filter(key -> key.isUsable(now));
+        String keyHash = hash(rawKey);
+        TenantContext.setApiKeyHash(keyHash);
+        Optional<ApiKey> found = apiKeyRepository.findByKeyHash(keyHash).filter(key -> key.isUsable(now));
         if (found.isEmpty()) {
             return Optional.empty();
         }
 
         ApiKey apiKey = found.get();
+        TenantContext.setOrganizationId(apiKey.getOrganization().getId());
         // Avoids a database write on every request from a busy integration.
         if (apiKey.getLastUsedAt() == null || apiKey.getLastUsedAt().plus(LAST_USED_RESOLUTION).isBefore(now)) {
             apiKey.setLastUsedAt(now);
@@ -116,6 +129,12 @@ public class ApiKeyService {
 
         return Optional.of(new AuthenticatedApiKey(
             apiKey.getId(), apiKey.getOrganization().getId(), apiKey.getName(), apiKey.getScopes()));
+    }
+
+    private void requireStepUp(UserPrincipal principal) {
+        if (stepUpGuard != null) {
+            stepUpGuard.require(principal);
+        }
     }
 
     static String hash(String rawKey) {

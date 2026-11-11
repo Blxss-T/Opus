@@ -5,12 +5,13 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import com.opsflow.common.persistence.DbSchemas;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
 
 @Entity
-@Table(name = "otp_codes")
+@Table(schema = DbSchemas.IDENTITY, name = "otp_codes")
 public class OtpCode extends BaseEntity {
 
     @Column(name = "email", nullable = false)
