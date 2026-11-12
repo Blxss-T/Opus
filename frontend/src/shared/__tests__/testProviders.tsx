@@ -1,5 +1,6 @@
 import { act, render, type RenderOptions } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MotionConfig } from "framer-motion";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { http, HttpResponse } from "msw";
 import type { ReactElement } from "react";
@@ -56,11 +57,13 @@ export function renderWithProviders(ui: ReactElement, options: RenderWithProvide
   );
 
   return render(
-    <QueryClientProvider client={newTestQueryClient()}>
-      <AuthProvider>
-        <ToastProvider>{routed}</ToastProvider>
-      </AuthProvider>
-    </QueryClientProvider>,
+    <MotionConfig reducedMotion="always">
+      <QueryClientProvider client={newTestQueryClient()}>
+        <AuthProvider>
+          <ToastProvider>{routed}</ToastProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </MotionConfig>,
     renderOptions,
   );
 }

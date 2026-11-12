@@ -15,6 +15,7 @@ import { CustomerDetailPage } from "../customers/pages/CustomerDetailPage";
 import { SupplierListPage } from "../suppliers/pages/SupplierListPage";
 import { SupplierCreatePage } from "../suppliers/pages/SupplierCreatePage";
 import { SupplierDetailPage } from "../suppliers/pages/SupplierDetailPage";
+import { StyleGuidePage } from "../styleguide/StyleGuidePage";
 import { AppShell } from "./AppShell";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { RoleGuard } from "./RoleGuard";
@@ -32,6 +33,7 @@ export function AppRouter() {
       <Route path="/password/forgot" element={<ForgotPasswordPage />} />
       <Route path="/password/reset" element={<ResetPasswordPage />} />
       <Route path="/verify-otp" element={<VerifyOtpPage />} />
+      {import.meta.env.DEV && <Route path="/styleguide" element={<StyleGuidePage />} />}
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
