@@ -41,7 +41,6 @@ export function CustomerCreatePage() {
 
   return (
     <div>
-      <h1>New customer</h1>
       <CustomerForm
         initial={initialForm}
         submitLabel="Create customer"

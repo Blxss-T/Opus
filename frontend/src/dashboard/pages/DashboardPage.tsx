@@ -27,8 +27,6 @@ export function DashboardPage() {
 
   return (
     <div className="dashboard-page">
-      <h1>Dashboard</h1>
-
       {canSeeSummary && (
         <section>
           {summaryQuery.isLoading && <Spinner label="Loading summary…" />}

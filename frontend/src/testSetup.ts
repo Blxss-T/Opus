@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach } from "vitest";
 import { httpClient } from "./api/client";
 import { resetAuthStore } from "./auth/authStore";
 import { clearTokens } from "./auth/tokenStorage";
+import { resetUiStore } from "./shared/stores/uiStore";
 import { server } from "./auth/__tests__/mockServer";
 
 axios.defaults.adapter = "http";
@@ -36,4 +37,5 @@ afterAll(() => server.close());
 beforeEach(() => {
   clearTokens();
   resetAuthStore();
+  resetUiStore();
 });

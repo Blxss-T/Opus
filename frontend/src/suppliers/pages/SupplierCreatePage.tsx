@@ -48,7 +48,6 @@ export function SupplierCreatePage() {
 
   return (
     <div>
-      <h1>New supplier</h1>
       <SupplierForm
         initial={initialForm}
         submitLabel="Create supplier"

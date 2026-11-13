@@ -70,7 +70,6 @@ export function CustomerDetailPage() {
 
   return (
     <div>
-      <h1>Customer</h1>
       {query.isLoading && <Spinner label="Loading customer…" />}
       {query.isError && (
         <div className="error-panel">

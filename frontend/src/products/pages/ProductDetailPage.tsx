@@ -107,7 +107,6 @@ export function ProductDetailPage() {
 
   return (
     <div>
-      <h1>Product</h1>
       {productQuery.isLoading && <Spinner label="Loading product…" />}
       {productQuery.isError && (
         <div className="error-panel">

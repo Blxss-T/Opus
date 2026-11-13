@@ -31,7 +31,6 @@ export function CustomerListPage() {
 
   return (
     <div>
-      <h1>Customers</h1>
       <div className="list-toolbar">
         <form onSubmit={handleSearch} className="list-toolbar__search">
           <FormField

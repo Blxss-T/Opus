@@ -15,6 +15,7 @@ import { CustomerDetailPage } from "../customers/pages/CustomerDetailPage";
 import { SupplierListPage } from "../suppliers/pages/SupplierListPage";
 import { SupplierCreatePage } from "../suppliers/pages/SupplierCreatePage";
 import { SupplierDetailPage } from "../suppliers/pages/SupplierDetailPage";
+import { ComingNextPage } from "../shared/components/ComingNextPage";
 import { StyleGuidePage } from "../styleguide/StyleGuidePage";
 import { AppShell } from "./AppShell";
 import { ProtectedRoute } from "./ProtectedRoute";
@@ -45,11 +46,21 @@ export function AppRouter() {
             <Route path="/customers/:id" element={<CustomerDetailPage />} />
             <Route path="/suppliers" element={<SupplierListPage />} />
             <Route path="/suppliers/:id" element={<SupplierDetailPage />} />
+            <Route path="/purchasing" element={<ComingNextPage />} />
+            <Route path="/sales" element={<ComingNextPage />} />
+            <Route path="/organizations" element={<ComingNextPage />} />
+            <Route path="/employees/me" element={<ComingNextPage />} />
           </Route>
           <Route element={<RoleGuard allow={["ORG_ADMIN", "MANAGER"]} />}>
             <Route path="/products/new" element={<ProductCreatePage />} />
             <Route path="/customers/new" element={<CustomerCreatePage />} />
             <Route path="/suppliers/new" element={<SupplierCreatePage />} />
+            <Route path="/employees" element={<ComingNextPage />} />
+            <Route path="/users" element={<ComingNextPage />} />
+          </Route>
+          <Route element={<RoleGuard allow={["ORG_ADMIN"]} />}>
+            <Route path="/api-keys" element={<ComingNextPage />} />
+            <Route path="/audit" element={<ComingNextPage />} />
           </Route>
         </Route>
       </Route>

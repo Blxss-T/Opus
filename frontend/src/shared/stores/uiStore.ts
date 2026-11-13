@@ -15,3 +15,7 @@ export const useUiStore = create<UiState>((set) => ({
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
   setMobileNavOpen: (open) => set({ mobileNavOpen: open }),
 }));
+
+export function resetUiStore(): void {
+  useUiStore.setState({ sidebarCollapsed: false, mobileNavOpen: false });
+}

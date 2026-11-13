@@ -50,7 +50,6 @@ export function ProductCreatePage() {
 
   return (
     <div>
-      <h1>New product</h1>
       <ProductForm
         mode="create"
         initial={initialForm}
