@@ -25,7 +25,10 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <AuthLayout title="Forgot your password?">
+    <AuthLayout
+      title="Forgot your password?"
+      subtitle="Enter the email for your account. We will send a reset code either way."
+    >
       <form onSubmit={handleSubmit}>
         <FormField
           label="Email"
@@ -36,11 +39,11 @@ export function ForgotPasswordPage() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
-        <Button type="submit" loading={submitting}>
+        <Button type="submit" variant="inverse" className="w-full" loading={submitting}>
           Send reset code
         </Button>
       </form>
-      <p>
+      <p className="mt-4 text-small">
         <Link to="/login">Back to sign in</Link>
       </p>
     </AuthLayout>

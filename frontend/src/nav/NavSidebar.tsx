@@ -1,7 +1,8 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Building2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
+import { BrandLogo } from "../shared/components/BrandLogo";
 import { IconButton } from "../shared/components/IconButton";
 import { motionEase } from "../shared/motion";
 import { cn } from "../shared/utils/cn";
@@ -28,10 +29,9 @@ export function NavSidebar({ collapsed, onToggle, showToggle, onNavigate }: NavS
       aria-label="Sidebar"
     >
       <div className={cn("flex items-center gap-2 px-3 py-5", collapsed ? "justify-center" : "px-4")}>
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary-600 text-white">
-          <Building2 size={18} strokeWidth={1.75} aria-hidden />
-        </span>
-        <span className={cn("text-card text-heading", collapsed && "sr-only")}>Opus</span>
+        <BrandLogo
+          className={cn("shrink-0", collapsed ? "h-9 w-9 object-cover object-left" : "h-8 max-w-[148px]")}
+        />
         {showToggle && onToggle && (
           <IconButton
             label={collapsed ? "Expand sidebar" : "Collapse sidebar"}

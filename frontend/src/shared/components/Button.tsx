@@ -2,7 +2,7 @@ import { Slot } from "@radix-ui/react-slot";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "../utils/cn";
 
-type Variant = "primary" | "secondary" | "danger";
+type Variant = "primary" | "secondary" | "danger" | "inverse";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -17,6 +17,7 @@ const variantClass: Record<Variant, string> = {
   secondary:
     "bg-surface text-heading border border-border hover:bg-chip disabled:hover:bg-surface",
   danger: "bg-danger text-white hover:bg-danger/90 disabled:hover:bg-danger",
+  inverse: "bg-white text-on-inverse hover:bg-primary-50 disabled:hover:bg-white",
 };
 
 export function Button({

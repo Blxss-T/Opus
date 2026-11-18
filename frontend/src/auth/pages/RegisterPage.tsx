@@ -50,7 +50,10 @@ export function RegisterPage() {
   }
 
   return (
-    <AuthLayout title="Register your organization">
+    <AuthLayout
+      title="Register your organization"
+      subtitle="Enter your details to create the first admin account."
+    >
       <form onSubmit={handleSubmit}>
         <FormField
           label="Organization name"
@@ -60,22 +63,24 @@ export function RegisterPage() {
           error={fieldErrors.organizationName}
           onChange={(e) => update("organizationName", e.target.value)}
         />
-        <FormField
-          label="First name"
-          name="firstName"
-          required
-          value={form.firstName}
-          error={fieldErrors.firstName}
-          onChange={(e) => update("firstName", e.target.value)}
-        />
-        <FormField
-          label="Last name"
-          name="lastName"
-          required
-          value={form.lastName}
-          error={fieldErrors.lastName}
-          onChange={(e) => update("lastName", e.target.value)}
-        />
+        <div className="grid gap-x-3 sm:grid-cols-2">
+          <FormField
+            label="First name"
+            name="firstName"
+            required
+            value={form.firstName}
+            error={fieldErrors.firstName}
+            onChange={(e) => update("firstName", e.target.value)}
+          />
+          <FormField
+            label="Last name"
+            name="lastName"
+            required
+            value={form.lastName}
+            error={fieldErrors.lastName}
+            onChange={(e) => update("lastName", e.target.value)}
+          />
+        </div>
         <FormField
           label="Email"
           name="email"
@@ -96,12 +101,16 @@ export function RegisterPage() {
           error={fieldErrors.password}
           onChange={(value) => update("password", value)}
         />
-        {formError && <p className="form-field__error">{formError}</p>}
-        <Button type="submit" loading={submitting}>
+        {formError && (
+          <p className="mb-3 text-caption text-danger" role="alert">
+            {formError}
+          </p>
+        )}
+        <Button type="submit" variant="inverse" className="w-full" loading={submitting}>
           Create organization
         </Button>
       </form>
-      <p>
+      <p className="mt-4 text-small text-muted">
         Already have an account? <Link to="/login">Sign in</Link>
       </p>
     </AuthLayout>

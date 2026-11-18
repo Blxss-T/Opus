@@ -38,8 +38,12 @@ export function LoginPage() {
   }
 
   return (
-    <AuthLayout title="Sign in">
-      {sessionExpired && <p className="auth-banner">Your session expired. Please sign in again.</p>}
+    <AuthLayout title="Sign in" subtitle="Enter your email and password to continue.">
+      {sessionExpired && (
+        <p className="mb-4 rounded-md bg-primary-600 px-3 py-2 text-small text-white">
+          Your session expired. Please sign in again.
+        </p>
+      )}
       <form onSubmit={handleSubmit}>
         <FormField
           label="Email"
@@ -58,15 +62,19 @@ export function LoginPage() {
           value={password}
           onChange={setPassword}
         />
-        {error && <p className="form-field__error">{error}</p>}
-        <Button type="submit" loading={submitting}>
+        {error && (
+          <p className="mb-3 text-caption text-danger" role="alert">
+            {error}
+          </p>
+        )}
+        <Button type="submit" variant="inverse" className="w-full" loading={submitting}>
           Sign in
         </Button>
       </form>
-      <p>
+      <p className="mt-4 text-small">
         <Link to="/password/forgot">Forgot your password?</Link>
       </p>
-      <p>
+      <p className="text-small text-muted">
         Don&apos;t have an account? <Link to="/register">Register your organization</Link>
       </p>
     </AuthLayout>

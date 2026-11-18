@@ -33,15 +33,43 @@
   }
 }
 
-/* Legacy layout classes — removed as screens are restyled in later steps. */
-
-.auth-banner {
-  background: var(--color-primary-600);
-  color: #fff;
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  margin-bottom: 16px;
+.auth-brand-panel {
+  background-color: var(--color-brand-deep);
+  background-image: radial-gradient(
+    ellipse 110% 85% at 50% -15%,
+    var(--color-brand-glow) 0%,
+    transparent 58%
+  );
 }
+
+.auth-dark {
+  --color-bg: var(--color-auth-bg);
+  --color-surface: var(--color-auth-surface);
+  --color-heading: var(--color-auth-heading);
+  --color-body: var(--color-auth-body);
+  --color-muted: var(--color-auth-muted);
+  --color-border: var(--color-auth-border);
+  --color-chip: var(--color-auth-chip);
+  color: var(--color-body);
+  background-color: var(--color-auth-bg);
+}
+
+.auth-dark a {
+  color: var(--color-auth-heading);
+}
+
+.auth-dark label {
+  color: var(--color-auth-muted);
+  font-weight: 500;
+}
+
+.auth-dark input:not([type="checkbox"]):not([type="radio"]) {
+  background-color: var(--color-auth-chip);
+  border-color: var(--color-auth-border);
+  color: var(--color-auth-heading);
+}
+
+/* Legacy layout classes — removed as screens are restyled in later steps. */
 
 .form-field {
   margin-bottom: 16px;
@@ -68,16 +96,6 @@
   color: var(--color-danger);
   font-size: 12px;
   margin-top: 4px;
-}
-
-.link-button {
-  background: none;
-  border: none;
-  color: var(--color-primary-600);
-  cursor: pointer;
-  padding: 0;
-  margin-bottom: 12px;
-  font: inherit;
 }
 
 .btn {
