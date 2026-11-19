@@ -74,7 +74,7 @@ function BrandPanel({ copy }: { copy: PanelCopy }) {
           className="pointer-events-none absolute inset-0 h-full w-full scale-y-[-1] object-cover"
         />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-brand-deep/80 via-brand-deep/25 to-transparent" />
-        <BrandLogo onDark className="relative z-10 mx-auto h-24 max-w-[280px]" />
+        <BrandLogo onDark className="relative z-10 mx-auto -mt-4 h-44 w-auto max-w-[90%]" />
         <div className="relative z-10 mt-auto">
           <h2 className="m-0 text-center text-page font-semibold text-white">{copy.heading}</h2>
           <p className="mx-auto mt-3 mb-10 max-w-xs text-center text-body text-white/75">{copy.body}</p>
@@ -123,9 +123,9 @@ export function AuthLayout({
       <BrandPanel copy={copy} />
       <section className="auth-dark flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="flex h-14 items-center bg-auth-bg px-4 md:hidden">
-            <BrandLogo onDark className="h-8" />
+            <BrandLogo onDark className="h-10" />
           </div>
-          <div className="flex flex-1 items-center justify-center px-6 py-10 md:px-16">
+          <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-6 py-10 md:px-16">
             <div className="w-full max-w-[420px]">
               <AnimatePresence mode="wait">
                 <motion.div

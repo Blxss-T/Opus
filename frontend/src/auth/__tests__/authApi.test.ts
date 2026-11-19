@@ -39,4 +39,36 @@ describe("authApi", () => {
     const result = await authApi.sendOtp({ email: "someone@example.com", type: "EMAIL_VERIFICATION" });
     expect(result.success).toBe(true);
   });
+
+  it("sends the Google ID token to /auth/google", async () => {
+    server.use(
+      http.post(`${baseUrl}/auth/google`, async ({ request }) => {
+        const body = await request.json();
+        expect(body).toEqual({ idToken: "google-id-token" });
+        return HttpResponse.json({
+          success: true,
+          data: {
+            accessToken: "access-token-1",
+            refreshToken: "refresh-token-1",
+            tokenType: "Bearer",
+            user: {
+              id: "user-1",
+              organizationId: "org-1",
+              email: "ada@opus.test",
+              firstName: "Ada",
+              lastName: "Lovelace",
+              role: "ORG_ADMIN",
+              active: true,
+              emailVerified: true,
+            },
+            organization: { id: "org-1", name: "Ada's Organization", slug: "adas-organization", active: true },
+          },
+          timestamp: "",
+        });
+      }),
+    );
+
+    const result = await authApi.loginWithGoogle({ idToken: "google-id-token" });
+    expect(result.user.email).toBe("ada@opus.test");
+  });
 });

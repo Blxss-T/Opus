@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthLayout } from "../components/AuthLayout";
+import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import { PasswordField } from "../components/PasswordField";
 import { FormField } from "../../shared/components/FormField";
 import { Button } from "../../shared/components/Button";
@@ -110,6 +111,10 @@ export function RegisterPage() {
           Create organization
         </Button>
       </form>
+      <GoogleSignInButton
+        disabled={submitting}
+        onSignedIn={() => navigate("/dashboard", { replace: true })}
+      />
       <p className="mt-4 text-small text-muted">
         Already have an account? <Link to="/login">Sign in</Link>
       </p>

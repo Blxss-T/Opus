@@ -41,6 +41,10 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface GoogleAuthRequest {
+  idToken: string;
+}
+
 export interface RefreshRequest {
   refreshToken: string;
 }

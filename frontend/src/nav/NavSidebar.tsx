@@ -30,7 +30,7 @@ export function NavSidebar({ collapsed, onToggle, showToggle, onNavigate }: NavS
     >
       <div className={cn("flex items-center gap-2 px-3 py-5", collapsed ? "justify-center" : "px-4")}>
         <BrandLogo
-          className={cn("shrink-0", collapsed ? "h-9 w-9 object-cover object-left" : "h-8 max-w-[148px]")}
+          className={cn("shrink-0", collapsed ? "h-10 w-10 object-cover object-left" : "h-11 max-w-[200px]")}
         />
         {showToggle && onToggle && (
           <IconButton

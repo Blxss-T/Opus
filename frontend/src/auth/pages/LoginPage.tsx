@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AuthLayout } from "../components/AuthLayout";
+import { GoogleSignInButton } from "../components/GoogleSignInButton";
 import { PasswordField } from "../components/PasswordField";
 import { FormField } from "../../shared/components/FormField";
 import { Button } from "../../shared/components/Button";
@@ -71,6 +72,13 @@ export function LoginPage() {
           Sign in
         </Button>
       </form>
+      <GoogleSignInButton
+        disabled={submitting}
+        onSignedIn={() => {
+          const state = location.state as LocationState | null;
+          navigate(state?.from?.pathname ?? "/dashboard", { replace: true });
+        }}
+      />
       <p className="mt-4 text-small">
         <Link to="/password/forgot">Forgot your password?</Link>
       </p>

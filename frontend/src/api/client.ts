@@ -8,7 +8,7 @@ const baseURL = import.meta.env.VITE_API_BASE_URL;
 
 // Paths that must never trigger the refresh-and-retry flow on 401: retrying
 // a failed login/refresh with a refresh call would loop forever.
-const REFRESH_EXEMPT_PATHS = ["/auth/login", "/auth/refresh", "/auth/register"];
+const REFRESH_EXEMPT_PATHS = ["/auth/login", "/auth/refresh", "/auth/register", "/auth/google"];
 
 let unauthorizedHandler: (() => void) | null = null;
 

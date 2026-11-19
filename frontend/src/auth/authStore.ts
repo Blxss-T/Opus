@@ -11,6 +11,7 @@ export interface AuthState {
   user: UserResponse | null;
   organization: OrganizationResponse | null;
   login: (body: LoginRequest) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   register: (body: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
   hasRole: (roles: Role[]) => boolean;
@@ -69,6 +70,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   login: async (body) => {
     const auth = await authApi.login(body);
+    set(applyAuthResponse(auth));
+  },
+
+  loginWithGoogle: async (idToken) => {
+    const auth = await authApi.loginWithGoogle({ idToken });
     set(applyAuthResponse(auth));
   },
 

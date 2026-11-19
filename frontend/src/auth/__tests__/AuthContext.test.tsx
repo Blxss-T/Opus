@@ -9,12 +9,13 @@ import { server } from "./mockServer";
 const baseUrl = "http://localhost:8080/api/v1";
 
 function Probe() {
-  const { status, user, login, logout } = useAuthContext();
+  const { status, user, login, loginWithGoogle, logout } = useAuthContext();
   return (
     <div>
       <span data-testid="status">{status}</span>
       <span data-testid="user">{user?.email ?? ""}</span>
       <button onClick={() => login({ email: "admin@opus-demo.test", password: "DemoPass123!" })}>login</button>
+      <button onClick={() => loginWithGoogle("google-id-token")}>google</button>
       <button onClick={() => logout()}>logout</button>
     </div>
   );
@@ -32,6 +33,23 @@ describe("AuthContext", () => {
       </AuthProvider>,
     );
     await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
+  });
+
+  it("logs in with Google, storing tokens and the user", async () => {
+    const user = userEvent.setup();
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("unauthenticated"));
+
+    await user.click(screen.getByText("google"));
+
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("authenticated"));
+    expect(screen.getByTestId("user")).toHaveTextContent("admin@opus-demo.test");
+    expect(getAccessToken()).toBe("access-token-1");
+    expect(getRefreshToken()).toBe("refresh-token-1");
   });
 
   it("logs in, storing tokens and the user", async () => {

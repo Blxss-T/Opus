@@ -17,5 +17,6 @@ describe("RegisterPage", () => {
     for (const label of ["Organization name", "First name", "Last name", "Email"]) {
       expect(screen.getByLabelText(label)).toBeRequired();
     }
+    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
   });
 });

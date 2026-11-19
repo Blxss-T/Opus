@@ -40,6 +40,7 @@ function ok<T>(data: T): ApiResponse<T> {
 
 export const server = setupServer(
   http.post(`${baseUrl}/auth/login`, () => HttpResponse.json(ok(authResponse()))),
+  http.post(`${baseUrl}/auth/google`, () => HttpResponse.json(ok(authResponse()))),
   http.post(`${baseUrl}/auth/refresh`, () =>
     HttpResponse.json(ok(authResponse({ accessToken: "access-token-2", refreshToken: "refresh-token-2" }))),
   ),

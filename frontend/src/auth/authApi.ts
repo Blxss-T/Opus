@@ -3,6 +3,7 @@ import type {
   AuthResponse,
   ChangePasswordRequest,
   ForgotPasswordRequest,
+  GoogleAuthRequest,
   LoginRequest,
   MessageResponse,
   OtpResponse,
@@ -20,6 +21,10 @@ export function register(body: RegisterRequest): Promise<AuthResponse> {
 
 export function login(body: LoginRequest): Promise<AuthResponse> {
   return apiPost<AuthResponse>("/auth/login", body);
+}
+
+export function loginWithGoogle(body: GoogleAuthRequest): Promise<AuthResponse> {
+  return apiPost<AuthResponse>("/auth/google", body);
 }
 
 export function me(): Promise<UserResponse> {
