@@ -58,7 +58,7 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <AuthLayout title="Reset your password">
+    <AuthLayout title="Reset your password" subtitle="Use the email code to choose a new password.">
       <form onSubmit={handleSubmit}>
         <FormField
           label="Email"
@@ -91,16 +91,24 @@ export function ResetPasswordPage() {
           error={fieldErrors.confirmPassword}
           onChange={setConfirmPassword}
         />
-        {formError && <p className="form-field__error">{formError}</p>}
-        <Button type="submit" loading={submitting}>
+        {formError && (
+          <p className="mb-3 text-caption text-danger" role="alert">
+            {formError}
+          </p>
+        )}
+        <Button type="submit" variant="inverse" className="w-full" loading={submitting}>
           Reset password
         </Button>
       </form>
-      <button type="button" className="link-button" onClick={handleResend}>
+      <button
+        type="button"
+        className="mt-3 text-small font-medium text-primary-600"
+        onClick={handleResend}
+      >
         Resend code
       </button>
-      {resendMessage && <p>{resendMessage}</p>}
-      <p>
+      {resendMessage && <p className="mt-2 text-small text-muted">{resendMessage}</p>}
+      <p className="mt-4 text-small">
         <Link to="/login">Back to sign in</Link>
       </p>
     </AuthLayout>

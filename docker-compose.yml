@@ -1,4 +1,3 @@
-version: "3.8"
 
 # `docker compose up -d` starts PostgreSQL and Mailpit for local development
 # (run the app itself with ./mvnw spring-boot:run).

@@ -47,18 +47,21 @@ export function VerifyOtpPage({ type = "EMAIL_VERIFICATION" as OtpType }: { type
   }
 
   return (
-    <AuthLayout title="Verify your email">
-      <p>We sent a verification code to {email}.</p>
+    <AuthLayout title="Verify your email" subtitle={`We sent a verification code to ${email}.`}>
       <form onSubmit={handleSubmit}>
         <OtpInput value={code} onChange={setCode} error={error ?? undefined} />
-        <Button type="submit" loading={submitting}>
+        <Button type="submit" variant="inverse" className="w-full" loading={submitting}>
           Verify
         </Button>
       </form>
-      <button type="button" className="link-button" onClick={handleResend}>
+      <button
+        type="button"
+        className="mt-3 text-small font-medium text-primary-600"
+        onClick={handleResend}
+      >
         Resend code
       </button>
-      {resendMessage && <p>{resendMessage}</p>}
+      {resendMessage && <p className="mt-2 text-small text-muted">{resendMessage}</p>}
     </AuthLayout>
   );
 }

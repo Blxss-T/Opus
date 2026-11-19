@@ -1,0 +1,66 @@
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary-50: #f4eefb;
+  --color-primary-100: #e8d9f5;
+  --color-primary-200: #d0b3ea;
+  --color-primary-300: #b07dd9;
+  --color-primary-400: #8a3fc0;
+  --color-primary-500: #6614a0;
+  --color-primary-600: #4b0082;
+  --color-primary-700: #3d006b;
+  --color-primary-800: #2e0052;
+  --color-primary-900: #1f0038;
+  --color-primary-950: #120024;
+
+  --color-brand-deep: #0a0014;
+  --color-brand-glow: #c9a6f0;
+  --color-brand-step: #2c2c32;
+
+  --color-bg: #f4f4f6;
+  --color-surface: #ffffff;
+  --color-heading: #16161a;
+  --color-body: #3a3a3f;
+  --color-muted: #6b6b73;
+  --color-border: #e4e4e9;
+  --color-chip: #f0f0f3;
+
+  --color-auth-bg: #0a0a0c;
+  --color-auth-surface: #0a0a0c;
+  --color-auth-heading: #f5f5f7;
+  --color-auth-body: #c8c8cc;
+  --color-auth-muted: #8e8e96;
+  --color-auth-border: #2a2a2e;
+  --color-auth-chip: #1a1a1e;
+  --color-on-inverse: #0a0a0c;
+
+  --color-success: #2f7d57;
+  --color-success-soft: #e8f6ee;
+  --color-warning: #9a6b12;
+  --color-warning-soft: #faf0d8;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
+  --color-status-ordered: #4b0082;
+  --color-status-ordered-soft: #f3e8ff;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --shadow-sm: 0 1px 2px rgb(22 22 26 / 0.04), 0 1px 3px rgb(22 22 26 / 0.04);
+  --shadow-md: 0 8px 28px rgb(22 22 26 / 0.06);
+
+  --text-page: 1.75rem;
+  --text-page--line-height: 1.25;
+  --text-page--font-weight: 600;
+  --text-card: 1.125rem;
+  --text-card--line-height: 1.35;
+  --text-card--font-weight: 600;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.5;
+  --text-small: 0.8125rem;
+  --text-small--line-height: 1.45;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.4;
+}
